@@ -1,0 +1,171 @@
+.addstory {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 5;
+}
+
+
+.add-story-modal {
+    background-color: white;
+    padding: 40px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+}
+
+.close-modal-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: 1pt solid red;
+    font-size: 24px;
+    cursor: pointer;
+    color: red;
+    border-radius: 20px;
+
+}
+
+.slide-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    gap: 10px;
+}
+
+.slide-tab-container {
+    position: relative;
+
+}
+
+.slide-tab {
+    font-weight: bold;
+    background-color: #FFFFFF;
+    border: none;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    padding: 17px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    position: relative;
+}
+
+
+.delete-slide {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+/* .slide-tab.add-slide {
+    background-color: #28a745;
+    color: white;
+} */
+
+.form-container {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.form-container.hidden {
+    display: none;
+}
+
+.form-group {
+    display: contents;
+}
+
+/* .category-group {
+    margin-top: 20px;
+} */
+
+label {
+    font-weight: bold;
+    text-align: left;
+}
+
+input,
+textarea,
+select {
+    width: 70%;
+    padding: 8px;
+    border: 1pt solid black;
+    border-radius: 4px;
+    margin-left: 20px;
+
+
+}
+
+textarea {
+    height: 100px;
+}
+
+.category-info {
+    grid-column: 2;
+    font-size: 12px;
+    color: #888;
+}
+
+.button-group {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    gap: 10px;
+}
+
+.btn {
+    padding: 11px 22px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    margin: 2px;
+    border-radius: 20px;
+}
+
+.btn.previous {
+    background-color: #7EFF73;
+    color: white;
+}
+
+.btn.next {
+    background-color: #73ABFF;
+    color: white;
+}
+
+.btn.post {
+    background-color: #FF7373;
+    color: white;
+}
+
+/* Scrollable dropdown for category selection */
+.scrollable-dropdown {
+    max-height: 150px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    width: 75%;
+    padding: 8px;
+    border: 1pt solid black;
+    border-radius: 4px;
+    margin-left: 20px;
+}
