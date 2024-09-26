@@ -3,9 +3,10 @@ import axios from 'axios';
 import '../styles/stories.css';
 import Register from '../user/signup';
 import Login from '../user/login';
-import { FaBookmark, FaPlus, FaUserCircle, FaEdit } from 'react-icons/fa';
+import { FaBookmark, FaPlus, FaCheck, FaUserCircle, FaEdit, FaHeart, FaRegHeart, FaDownload, FaShareAlt, FaRegBookmark } from 'react-icons/fa';
 import { GiHamburgerMenu } from 'react-icons/gi';
 import AddStoryModal from './addstory';
+
 
 const categoryData = [
     { name: 'All', imageUrl: "https://i.ibb.co/YWGR3n1/a-book-6213537-1280.jpg" },
@@ -31,6 +32,11 @@ function Stories() {
     const [user, setUser] = useState(null);
     const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
     const [editingStory, setEditingStory] = useState(null);
+    const [likes, setLikes] = useState({});
+    const [bookmarks, setBookmarks] = useState({});
+    const [bookmarkedStories, setBookmarkedStories] = useState([]);
+    const [showBookmarks, setShowBookmarks] = useState(false);
+    const [downloadedImages, setDownloadedImages] = useState({});
     const token = localStorage.getItem("token");
 
     useEffect(() => {
@@ -38,8 +44,119 @@ function Stories() {
         fetchUserData();
         if (token) {
             fetchUserStories();
+
+            fetchBookmarkedStories();
+
         }
     }, [token]);
+
+
+    const fetchBookmarkedStories = async () => {
+        try {
+            const response = await axios.get('http://localhost:5000/api/stories/bookmarked', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setBookmarkedStories(response.data);
+        } catch (error) {
+            console.error('Error fetching bookmarked stories:', error);
+        }
+    };
+    const handleLike = async (storyId) => {
+        if (!token) {
+            setShowLoginModal(true);
+            return;
+        }
+        try {
+            const response = await axios.post(`http://localhost:5000/api/stories/like/${storyId}`, {}, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setLikes(prevLikes => ({
+                ...prevLikes,
+                [storyId]: {
+                    count: response.data.likes,
+                    isLiked: !prevLikes[storyId]?.isLiked
+                }
+            }));
+        } catch (error) {
+            console.error('Error liking story:', error);
+        }
+    };
+
+    const handleBookmark = async (storyId) => {
+        if (!token) {
+            setShowLoginModal(true);
+            return;
+        }
+        try {
+            const response = await axios.post(`http://localhost:5000/api/stories/bookmark/${storyId}`, {}, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setBookmarks(prevBookmarks => ({
+                ...prevBookmarks,
+                [storyId]: response.data.bookmarked
+            }));
+        } catch (error) {
+            console.error('Error bookmarking story:', error);
+        }
+    };
+
+    // const fetchUserBookmarks = async () => {
+    //     try {
+    //         const response = await axios.get('http://localhost:5000/api/stories/userbookmarks', {
+    //             headers: {
+    //                 Authorization: `Bearer ${token}`,
+    //             },
+    //         });
+    //         const bookmarkedStories = response.data;
+    //         const initialBookmarks = {};
+    //         bookmarkedStories.forEach(storyId => {
+    //             initialBookmarks[storyId] = true;
+    //         });
+    //         setBookmarks(initialBookmarks);
+    //     } catch (error) {
+    //         console.error('Error fetching user bookmarks:', error);
+    //     }
+    // };
+
+    const handleDownload = async (imageUrl, storyId) => {
+        if (!token) {
+            setShowLoginModal(true);
+            return;
+        }
+        try {
+            const response = await fetch(imageUrl);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'story-image.jpg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Mark the image as downloaded
+            setDownloadedImages(prev => ({ ...prev, [storyId]: true }));
+
+            // Reset the icon after 3 seconds
+            setTimeout(() => {
+                setDownloadedImages(prev => ({ ...prev, [storyId]: false }));
+            }, 3000);
+        } catch (error) {
+            console.error('Error downloading image:', error);
+            alert('Failed to download the image. Please try again.');
+        }
+    };
+
+    const handleShare = () => {
+        if (!token) {
+            setShowLoginModal(true);
+            return;
+        }
+        const storyUrl = `${window.location.origin}/story/${showStoryModal._id}`;
+        navigator.clipboard.writeText(storyUrl).then(() => {
+            alert('Story link copied to clipboard!');
+        });
+    };
 
     const fetchStories = async () => {
         try {
@@ -49,6 +166,14 @@ function Stories() {
                 },
             });
             setStories(response.data);
+            const initialLikes = {};
+            response.data.forEach(story => {
+                initialLikes[story._id] = {
+                    count: story.likes?.length || 0,
+                    isLiked: story.likes?.includes(user?._id) || false
+                };
+            });
+            setLikes(initialLikes);
         } catch (error) {
             console.error('Error fetching stories:', error);
         }
@@ -105,9 +230,6 @@ function Stories() {
         }
     };
 
-    const handleShare = () => {
-        alert('Share functionality coming soon!');
-    };
 
     const handleLogout = () => {
         setUser(null);
@@ -178,7 +300,7 @@ function Stories() {
             <div className="top-bar">
                 {token ? (
                     <div className="user-buttons">
-                        <button className="bookmark-btn">
+                        <button className="bookmark-btn" onClick={() => setShowBookmarks(true)}>
                             <FaBookmark /> Bookmarks
                         </button>
                         <button className="add-story-btn" onClick={() => setShowAddStoryModal(true)}>
@@ -216,6 +338,94 @@ function Stories() {
                     postStory={editingStory ? handleUpdateStory : handleAddStory}
                     editingStory={editingStory}
                 />
+            )}
+
+            {showStoryModal && (
+                <div className="story-modal">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <div className="progress-bar" style={{ width: `${(currentSlideIndex + 1) / showStoryModal.slides.length * 100}%` }}></div>
+                            <div className="user-avatars">
+                                <img src={showStoryModal.userAvatar} alt="User Avatar" />
+                                <span className="avatar-badge">P</span>
+                            </div>
+                            <button onClick={() => setShowStoryModal(null)} className="close-btn">×</button>
+                        </div>
+                        {showStoryModal.slides[currentSlideIndex].videoUrl ? (
+                            <video
+                                src={showStoryModal.slides[currentSlideIndex].videoUrl}
+                                controls
+                                className="story-media"
+                            >
+                                Your browser does not support the video tag.
+                            </video>
+                        ) : (
+                            <img
+                                src={showStoryModal.slides[currentSlideIndex].imageUrl}
+                                alt="Story Slide"
+                                className="story-media"
+                            />
+                        )}
+
+                        {/* Navigation arrows */}
+                        <button
+                            onClick={goToPreviousSlide}
+                            className={`nav-arrow prev-arrow ${currentSlideIndex === 0 ? 'disabled' : ''}`}
+                            disabled={currentSlideIndex === 0}
+                        >
+                            &#8592;
+                        </button>
+                        <button
+                            onClick={goToNextSlide}
+                            className={`nav-arrow next-arrow ${currentSlideIndex === showStoryModal.slides.length - 1 ? 'disabled' : ''}`}
+                            disabled={currentSlideIndex === showStoryModal.slides.length - 1}
+                        >
+                            &#8594;
+                        </button>
+
+                        <div className="modal-footer">
+                            <button onClick={() => handleLike(showStoryModal._id)} className="action-btn like-btn">
+                                {likes[showStoryModal._id]?.isLiked ? <FaHeart color="red" /> : <FaRegHeart />}
+                                <span>{likes[showStoryModal._id]?.count || showStoryModal.likes || 0}</span>
+                            </button>
+                            <button
+                                onClick={() => handleDownload(showStoryModal.slides[currentSlideIndex].imageUrl, showStoryModal._id)}
+                                className="action-btn download-btn"
+                            >
+                                {downloadedImages[showStoryModal._id] ? <FaCheck /> : <FaDownload />}
+                            </button>
+                            <button onClick={handleShare} className="action-btn share-btn">
+                                <FaShareAlt />
+                            </button>
+                            <button onClick={() => handleBookmark(showStoryModal._id)} className="action-btn bookmark-btn">
+                                {bookmarks[showStoryModal._id] ? <FaBookmark color="blue" /> : <FaRegBookmark />}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showBookmarks && (
+                <div className="bookmarked-stories-section">
+                    <h2>Your Bookmarks</h2>
+                    <div className="story-list">
+                        {bookmarkedStories.map((story, idx) => (
+                            <div
+                                key={idx}
+                                className="story-box"
+                                style={{
+                                    backgroundImage: `url(${story.slides[0].imageUrl})`,
+                                    backgroundSize: 'cover',
+                                    backgroundPosition: 'center',
+                                }}
+                                onClick={() => openStoryModal(story, idx)}
+                            >
+                                <h3 className="story-heading">{story.slides[0].heading}</h3>
+                                <p className="story-description">{story.slides[0].description}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             )}
 
             {/* Category Selection */}
@@ -293,7 +503,6 @@ function Stories() {
                                                     e.stopPropagation();
                                                     handleEditStory(story);
                                                 }}>
-                                                    <FaEdit /> Edit
                                                 </button>
                                             )}
                                         </div>
@@ -337,31 +546,6 @@ function Stories() {
                 </div>
             )}
 
-            {showStoryModal && (
-                <div className="story-modal">
-                    <div className="modal-content">
-                        <h2>{showStoryModal.slides[currentSlideIndex].heading}</h2>
-                        <img src={showStoryModal.slides[currentSlideIndex].imageUrl} alt="Story Slide" />
-                        <p>{showStoryModal.slides[currentSlideIndex].description}</p>
-                        <div className="modal-controls">
-                            {currentSlideIndex > 0 && (
-                                <button onClick={goToPreviousSlide} className="prev-btn">
-                                    Prev
-                                </button>
-                            )}
-                            {currentSlideIndex < showStoryModal.slides.length - 1 && (
-                                <button onClick={goToNextSlide} className="next-btn">
-                                    Next
-                                </button>
-                            )}
-                        </div>
-                        <div className="modal-actions">
-                            <button onClick={handleShare}>Share</button>
-                            <button onClick={() => setShowStoryModal(null)}>Close</button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {showRegisterModal && <Register closeModal={() => setShowRegisterModal(false)} />}
             {showLoginModal && <Login closeModal={() => setShowLoginModal(false)} onLogin={handleLogin} />}

@@ -36,6 +36,14 @@
 
 }
 
+.download-btn svg {
+    transition: all 0.3s ease;
+}
+
+.download-btn:hover {
+    transform: scale(1.1);
+}
+
 .profile-picture {
 
     padding: 0px;
@@ -229,10 +237,9 @@
     position: fixed;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    /* Dark background */
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -254,20 +261,12 @@
 }
 
 .modal-content {
-    background: none;
-    padding: 0;
-    border-radius: 0;
-    width: 100vw;
-    /* Set to full viewport width */
-    height: 100vh;
-    /* Set to full viewport height */
     position: relative;
+    width: 80%;
+    max-width: 400px;
+    background-color: #1e1e1e;
+    border-radius: 10px;
     overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2;
-    /* Ensure content is above the blurred background */
 }
 
 .close-modal {
@@ -402,6 +401,15 @@
     right: 10px;
 }
 
+.progress-bar {
+    height: 3px;
+    background-color: #fff;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transition: width 0.3s ease;
+}
+
 /* styles/stories.css */
 .progress-lines {
     display: flex;
@@ -443,23 +451,29 @@
 
 .modal-header {
     display: flex;
-    /* Use flexbox to align items */
     justify-content: space-between;
-    /* Space between close and share icon */
     align-items: center;
-    /* Vertically center align items */
     padding: 10px;
-    /* Add some padding */
-    position: absolute;
-    /* Position it at the top of the modal */
-    top: 10px;
-    /* Adjust this as necessary */
-    left: 10px;
-    /* Adjust this as necessary */
-    right: 10px;
-    /* Adjust this as necessary */
-    z-index: 3;
-    /* Ensure it appears above other content */
+}
+
+.user-avatars {
+    display: flex;
+    align-items: center;
+}
+
+.user-avatars img {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.avatar-badge {
+    background-color: purple;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 5px;
+    font-size: 12px;
 }
 
 .share-icon {
@@ -476,4 +490,170 @@
     right: 38%;
     top: 45px;
 
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.story-image {
+    width: 100%;
+    height: auto;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px;
+}
+
+
+.modal-navigation {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px;
+}
+
+.nav-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.prev-btn {
+    margin-right: auto;
+}
+
+.next-btn {
+    margin-left: auto;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.action-btn:hover {
+    transform: scale(1.1);
+}
+
+.like-btn.active svg {
+    color: red;
+}
+
+.bookmark-btn.active svg {
+    color: blue;
+}
+
+.nav-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.3);
+    border: none;
+    color: white;
+    font-size: 24px;
+    padding: 10px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.nav-arrow:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.nav-arrow.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.prev-arrow {
+    left: 10px;
+}
+
+.next-arrow {
+    right: 10px;
+}
+
+.bookmarked-stories-section {
+    padding: 20px;
+    background-color: #f0f0f0;
+}
+
+.bookmarked-stories-section h2 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.story-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.story-box {
+    position: relative;
+    height: 300px;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.story-box:hover {
+    transform: scale(1.05);
+}
+
+.story-heading {
+    position: absolute;
+    bottom: 40px;
+    left: 10px;
+    right: 10px;
+    color: white;
+    font-size: 18px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.story-description {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    color: white;
+    font-size: 14px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.bookmark-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.bookmark-btn:hover {
+    background-color: #0056b3;
+}
+
+.story-media {
+    width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
 }

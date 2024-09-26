@@ -14,7 +14,7 @@ router.post('/add', middleware, async (req, res) => {
     console.log('Authenticated User:', req.user);
     console.log('Request Body:', req.body);
 
-    const { category, slides } = req.body;  // Expecting category and slides array
+    const { category, slides } = req.body;
 
     if (!slides || slides.length === 0) {
         return res.status(400).json({ message: "No slides provided." });
@@ -22,7 +22,7 @@ router.post('/add', middleware, async (req, res) => {
 
     // Validate the slides
     const validSlides = slides.filter(slide =>
-        slide.heading && slide.description && slide.imageUrl
+        slide.heading && slide.description && (slide.imageUrl || slide.videoUrl)
     );
 
     if (validSlides.length === 0) {
@@ -37,7 +37,7 @@ router.post('/add', middleware, async (req, res) => {
         });
 
         const savedStory = await newStory.save();
-        res.json(savedStory);  // Send back the saved story
+        res.json(savedStory);
     } catch (error) {
         console.error('Error saving story:', error);
         res.status(500).json({ message: error.message });
@@ -107,4 +107,73 @@ router.get('/userstories', middleware, async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 });
+
+router.post('/like/:id', middleware, async (req, res) => {
+    try {
+        const story = await Story.findById(req.params.id);
+        if (!story) {
+            return res.status(404).json({ message: 'Story not found' });
+        }
+
+        const userIndex = story.likes.indexOf(req.user._id);
+        if (userIndex === -1) {
+            story.likes.push(req.user._id);
+        } else {
+            story.likes.splice(userIndex, 1);
+        }
+        await story.save();
+
+        res.json({ likes: story.likes.length });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+router.post('/bookmark/:id', middleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            console.log('User not found')
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const storyIndex = user.bookmarks.indexOf(req.params.id);
+        if (storyIndex === -1) {
+            user.bookmarks.push(req.params.id);
+        } else {
+            user.bookmarks.splice(storyIndex, 1);
+        }
+        await user.save();
+
+        res.json({ bookmarked: storyIndex === -1 });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+router.get('/userbookmarks', middleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.json(user.bookmarks);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+
+router.get('/bookmarked', middleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).populate('bookmarks');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.json(user.bookmarks);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 module.exports = router;

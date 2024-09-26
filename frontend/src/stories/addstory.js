@@ -3,7 +3,7 @@ import axios from 'axios';
 import '../styles/addstory.css';
 
 const AddStoryModal = ({ closeModal, postStory }) => {
-    const [slides, setSlides] = useState([{ id: 1, heading: '', description: '', imageUrl: '' }]);
+    const [slides, setSlides] = useState([{ id: 1, heading: '', description: '', imageUrl: '', videoUrl: '' }]);
     const [currentSlide, setCurrentSlide] = useState(1);
     const [category, setCategory] = useState('');
     const token = localStorage.getItem('token');
@@ -20,7 +20,7 @@ const AddStoryModal = ({ closeModal, postStory }) => {
 
     const addSlide = () => {
         if (slides.length < 6) {
-            const newSlide = { id: slides.length + 1, heading: '', description: '', imageUrl: '' };
+            const newSlide = { id: slides.length + 1, heading: '', description: '', imageUrl: '', videoUrl: '' };
             setSlides([...slides, newSlide]);
             setCurrentSlide(newSlide.id);
         }
@@ -48,28 +48,46 @@ const AddStoryModal = ({ closeModal, postStory }) => {
         }
     };
     const handlePostStory = async () => {
-        // Prepare the slides data
+        // Validate that each slide has either an image or video URL
+        const isValid = slides.every(slide => slide.imageUrl || slide.videoUrl);
+        if (!isValid) {
+            alert("Each slide must have either an image or video URL.");
+            return;
+        }
+
         const storyData = slides.map(slide => ({
             heading: slide.heading,
             description: slide.description,
             imageUrl: slide.imageUrl,
+            videoUrl: slide.videoUrl,
         }));
 
-        // Log the data being sent to the parent for debugging
         console.log('Posting story data:', {
             category,
             slides: storyData,
         });
 
-        // Call postStory function passed from the parent with the correct data
         postStory({
-            category,  // Use the selected category from the state
-            slides: storyData,  // Pass the constructed slides data
+            category,
+            slides: storyData,
         });
 
-        closeModal();  // Close the modal after submission
+        closeModal();
     };
 
+    const handleMediaUrlChange = (e, slideId) => {
+        const url = e.target.value;
+        const isVideo = url.match(/\.(mp4|webm|ogg)$/i);
+        setSlides(slides.map(slide =>
+            slide.id === slideId
+                ? {
+                    ...slide,
+                    imageUrl: isVideo ? '' : url,
+                    videoUrl: isVideo ? url : ''
+                }
+                : slide
+        ));
+    };
     return (
         <div className="addstory">
             <div className="add-story-modal">
@@ -116,15 +134,16 @@ const AddStoryModal = ({ closeModal, postStory }) => {
                             />
                         </div>
                         <div className="form-group">
-                            <label htmlFor={`imageUrl-${slide.id}`}>Image URL :</label>
+                            <label htmlFor={`mediaUrl-${slide.id}`}>Image/Video URL :</label>
                             <input
                                 type="text"
-                                id={`imageUrl-${slide.id}`}
-                                name="imageUrl"
-                                placeholder="Enter image URL"
-                                value={slide.imageUrl}
-                                onChange={(e) => handleInputChange(e, slide.id)}
+                                id={`mediaUrl-${slide.id}`}
+                                name="mediaUrl"
+                                placeholder="Enter image or video URL"
+                                value={slide.imageUrl || slide.videoUrl}
+                                onChange={(e) => handleMediaUrlChange(e, slide.id)}
                             />
+
                             {/* Scrolling Category Selection */}
                             <div className="form-group category-group">
                                 <label htmlFor="category">Category :</label>
