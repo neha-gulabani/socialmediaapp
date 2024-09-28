@@ -5,14 +5,13 @@ const Story = require('../model/story');
 const middleware = require('../middleware/middleware');
 const router = express.Router();
 const User = require('../model/user');
-
+const mongoose = require('mongoose');
 
 
 // Add a story (protected route)
 
 router.post('/add', middleware, async (req, res) => {
-    console.log('Authenticated User:', req.user);
-    console.log('Request Body:', req.body);
+
 
     const { category, slides } = req.body;
 
@@ -46,17 +45,29 @@ router.post('/add', middleware, async (req, res) => {
 
 // Fetch stories (for all users)
 router.get('/fetchstories', async (req, res) => {
-    console.log('fetching triggered')
+    console.log('fetching stories')
+
     try {
 
         const stories = await Story.find().populate('userId', 'username');
-        console.log(stories)
+
         res.json(stories);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
+router.get('/userstories', middleware, async (req, res) => {
+    try {
+        console.log('stories')
+        const userStories = await Story.find({ userId: req.user._id });
+        console.log('userStories', userStories)
+        res.json(userStories);
+    } catch (error) {
+        console.error('Error fetching user stories:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
 
 router.get('/getUser', middleware, async (req, res) => {
 
@@ -77,6 +88,60 @@ router.get('/getUser', middleware, async (req, res) => {
         }
     };
 })
+
+router.get('/bookmarked', middleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).populate({
+            path: 'bookmarks.story',
+            select: 'slides category'
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const bookmarkedStories = user.bookmarks.map(bookmark => {
+            const story = bookmark.story;
+            if (!story || !story.slides || !story.slides[bookmark.slide]) {
+                return null;
+            }
+            const slide = story.slides[bookmark.slide];
+            return {
+                storyId: story._id,
+                slideIndex: bookmark.slide,
+                heading: slide.heading,
+                description: slide.description,
+                imageUrl: slide.imageUrl,
+                videoUrl: slide.videoUrl,
+                category: story.category
+            };
+        }).filter(story => story !== null);
+
+        res.json(bookmarkedStories);
+    } catch (error) {
+        console.error('Error fetching bookmarked stories:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+router.get('/:storyId', async (req, res) => {
+    try {
+        const { storyId } = req.params;
+
+        const story = await Story.findById(storyId)
+            .populate('userId', 'username')
+            .exec();
+
+        if (!story) {
+            return res.status(404).json({ message: 'Story not found' });
+        }
+
+        res.status(200).json(story);
+    } catch (error) {
+        console.error('Error fetching story:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 
 router.put('/:id', middleware, async (req, res) => {
     try {
@@ -99,54 +164,91 @@ router.put('/:id', middleware, async (req, res) => {
     }
 });
 
-router.get('/userstories', middleware, async (req, res) => {
-    try {
-        const userStories = await Story.find({ userId: req.user._id });
-        res.json(userStories);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
 
-router.post('/like/:id', middleware, async (req, res) => {
+
+router.get('/checkLikeBookmark/:storyId', middleware, async (req, res) => {
+    const userId = req.user ? req.user._id : null; // Get user ID from request
+    const { storyId } = req.params;
+
     try {
-        const story = await Story.findById(req.params.id);
+        const story = await Story.findById(storyId)
+            .populate('likes', 'username')
+            .populate('bookmarks', 'username')
+            .exec();
+
         if (!story) {
             return res.status(404).json({ message: 'Story not found' });
         }
 
-        const userIndex = story.likes.indexOf(req.user._id);
-        if (userIndex === -1) {
-            story.likes.push(req.user._id);
-        } else {
-            story.likes.splice(userIndex, 1);
-        }
-        await story.save();
+        // Check if the logged-in user has liked or bookmarked the story
+        const isLiked = userId ? story.likes.some(likeUser => likeUser._id.equals(userId)) : false;
+        const isBookmarked = userId ? story.bookmarks.some(bookmarkUser => bookmarkUser._id.equals(userId)) : false;
 
-        res.json({ likes: story.likes.length });
+        res.status(200).json({ isLiked, isBookmarked });
     } catch (error) {
+        console.error('Error checking like/bookmark status:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
+
+router.post('/like/:storyId/:slideIndex', middleware, async (req, res) => {
+    try {
+        const { storyId, slideIndex } = req.params;
+        console.log('Incoming storyId:', storyId); // Debug log
+        console.log('Incoming slideIndex:', slideIndex); // Debug log
+
+        const story = await Story.findById(storyId);
+
+        if (!story || !story.slides[slideIndex]) {
+            return res.status(404).json({ message: 'Story or slide not found' });
+        }
+
+        const slide = story.slides[slideIndex];
+        const userIndex = slide.likes.indexOf(req.user._id);
+
+        if (userIndex === -1) {
+            slide.likes.push(req.user._id);  // Like the slide
+        } else {
+            slide.likes.splice(userIndex, 1);  // Unlike the slide
+        }
+
+        await story.save();
+        res.json({ likes: slide.likes.length });
+    } catch (error) {
+        console.error('Error:', error); // Log the error for better debugging
         res.status(500).json({ message: error.message });
     }
 });
 
-router.post('/bookmark/:id', middleware, async (req, res) => {
+
+
+
+
+router.post('/bookmark/:storyId/:slideIndex', middleware, async (req, res) => {
     try {
+        const { storyId, slideIndex } = req.params;
         const user = await User.findById(req.user._id);
+
         if (!user) {
-            console.log('User not found')
             return res.status(404).json({ message: 'User not found' });
         }
 
-        const storyIndex = user.bookmarks.indexOf(req.params.id);
-        if (storyIndex === -1) {
-            user.bookmarks.push(req.params.id);
-        } else {
-            user.bookmarks.splice(storyIndex, 1);
-        }
-        await user.save();
+        const bookmarkIndex = user.bookmarks.findIndex(
+            b => b.story.toString() === storyId && b.slide === parseInt(slideIndex)
+        );
 
-        res.json({ bookmarked: storyIndex === -1 });
+        if (bookmarkIndex === -1) {
+            user.bookmarks.push({ story: storyId, slide: parseInt(slideIndex) });
+        } else {
+            user.bookmarks.splice(bookmarkIndex, 1);
+        }
+
+        await user.save();
+        res.json({ bookmarked: bookmarkIndex === -1 });
     } catch (error) {
+        console.error('Error bookmarking story:', error);
         res.status(500).json({ message: error.message });
     }
 });
@@ -164,16 +266,6 @@ router.get('/userbookmarks', middleware, async (req, res) => {
 });
 
 
-router.get('/bookmarked', middleware, async (req, res) => {
-    try {
-        const user = await User.findById(req.user._id).populate('bookmarks');
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        res.json(user.bookmarks);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
+
 
 module.exports = router;

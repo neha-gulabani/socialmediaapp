@@ -169,3 +169,19 @@ textarea {
     border-radius: 4px;
     margin-left: 20px;
 }
+
+.error-message {
+    color: red;
+    font-size: 0.9em;
+    margin-top: 5px;
+}
+
+.btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn.disabled:hover {
+    background-color: #007bff;
+    /* or whatever your default button color is */
+}

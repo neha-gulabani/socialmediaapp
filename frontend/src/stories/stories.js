@@ -6,7 +6,8 @@ import Login from '../user/login';
 import { FaBookmark, FaPlus, FaCheck, FaUserCircle, FaEdit, FaHeart, FaRegHeart, FaDownload, FaShareAlt, FaRegBookmark } from 'react-icons/fa';
 import { GiHamburgerMenu } from 'react-icons/gi';
 import AddStoryModal from './addstory';
-
+import { useNavigate, useLocation } from 'react-router-dom';
+import StoryBox from './storybox';
 
 const categoryData = [
     { name: 'All', imageUrl: "https://i.ibb.co/YWGR3n1/a-book-6213537-1280.jpg" },
@@ -35,21 +36,33 @@ function Stories() {
     const [likes, setLikes] = useState({});
     const [bookmarks, setBookmarks] = useState({});
     const [bookmarkedStories, setBookmarkedStories] = useState([]);
-    const [showBookmarks, setShowBookmarks] = useState(false);
+    const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
     const [downloadedImages, setDownloadedImages] = useState({});
+    const [visibleUserStories, setVisibleUserStories] = useState(4);
+    const [isBookmarksActive, setIsBookmarksActive] = useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
     const token = localStorage.getItem("token");
 
     useEffect(() => {
+        console.log(token);
         fetchStories();
         fetchUserData();
         if (token) {
             fetchUserStories();
-
             fetchBookmarkedStories();
-
         }
     }, [token]);
 
+    useEffect(() => {
+        const storyIdInUrl = new URLSearchParams(location.search).get('storyId');
+        if (storyIdInUrl) {
+            const story = stories.find(s => s._id === storyIdInUrl);
+            if (story) {
+                openStoryModal(story);
+            }
+        }
+    }, [location, stories]);
 
     const fetchBookmarkedStories = async () => {
         try {
@@ -61,24 +74,17 @@ function Stories() {
             console.error('Error fetching bookmarked stories:', error);
         }
     };
-    const handleLike = async (storyId) => {
-        if (!token) {
-            setShowLoginModal(true);
-            return;
-        }
-        try {
-            const response = await axios.post(`http://localhost:5000/api/stories/like/${storyId}`, {}, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            setLikes(prevLikes => ({
-                ...prevLikes,
-                [storyId]: {
-                    count: response.data.likes,
-                    isLiked: !prevLikes[storyId]?.isLiked
-                }
-            }));
-        } catch (error) {
-            console.error('Error liking story:', error);
+
+    const handleCloseLoginModal = () => {
+        console.log('close');
+        setShowLoginModal(false);
+    };
+
+    const toggleBookmarksView = () => {
+        setIsBookmarksActive(!isBookmarksActive);
+        setShowBookmarksOnly(!showBookmarksOnly);
+        if (!showBookmarksOnly) {
+            fetchBookmarkedStories();
         }
     };
 
@@ -100,24 +106,6 @@ function Stories() {
         }
     };
 
-    // const fetchUserBookmarks = async () => {
-    //     try {
-    //         const response = await axios.get('http://localhost:5000/api/stories/userbookmarks', {
-    //             headers: {
-    //                 Authorization: `Bearer ${token}`,
-    //             },
-    //         });
-    //         const bookmarkedStories = response.data;
-    //         const initialBookmarks = {};
-    //         bookmarkedStories.forEach(storyId => {
-    //             initialBookmarks[storyId] = true;
-    //         });
-    //         setBookmarks(initialBookmarks);
-    //     } catch (error) {
-    //         console.error('Error fetching user bookmarks:', error);
-    //     }
-    // };
-
     const handleDownload = async (imageUrl, storyId) => {
         if (!token) {
             setShowLoginModal(true);
@@ -134,10 +122,8 @@ function Stories() {
             link.click();
             document.body.removeChild(link);
 
-            // Mark the image as downloaded
             setDownloadedImages(prev => ({ ...prev, [storyId]: true }));
 
-            // Reset the icon after 3 seconds
             setTimeout(() => {
                 setDownloadedImages(prev => ({ ...prev, [storyId]: false }));
             }, 3000);
@@ -153,6 +139,7 @@ function Stories() {
             return;
         }
         const storyUrl = `${window.location.origin}/story/${showStoryModal._id}`;
+        window.open(storyUrl, '_blank');
         navigator.clipboard.writeText(storyUrl).then(() => {
             alert('Story link copied to clipboard!');
         });
@@ -208,9 +195,15 @@ function Stories() {
     };
 
     const openStoryModal = (story, index) => {
+        navigate(`/story/${story._id}`);
         setShowStoryModal(story);
         setCurrentStoryIndex(index);
         setCurrentSlideIndex(0);
+    };
+
+    const closeStoryModal = () => {
+        setShowStoryModal(null);
+        navigate('/');
     };
 
     const filteredStories = (category) => {
@@ -218,18 +211,9 @@ function Stories() {
         return stories.filter((story) => story.category === category.toLowerCase());
     };
 
-    const goToNextSlide = () => {
-        if (currentSlideIndex < showStoryModal.slides.length - 1) {
-            setCurrentSlideIndex(currentSlideIndex + 1);
-        }
+    const handleSeeMore = () => {
+        setVisibleUserStories(prevVisible => prevVisible + 4);
     };
-
-    const goToPreviousSlide = () => {
-        if (currentSlideIndex > 0) {
-            setCurrentSlideIndex(currentSlideIndex - 1);
-        }
-    };
-
 
     const handleLogout = () => {
         setUser(null);
@@ -243,6 +227,7 @@ function Stories() {
         setShowLoginModal(false);
         fetchUserData();
         fetchUserStories();
+        fetchBookmarkedStories();
     };
 
     const toggleHamburgerMenu = () => {
@@ -296,11 +281,14 @@ function Stories() {
     };
 
     return (
-        <div className="App">
+        <div className="stories">
             <div className="top-bar">
                 {token ? (
                     <div className="user-buttons">
-                        <button className="bookmark-btn" onClick={() => setShowBookmarks(true)}>
+                        <button
+                            className={`bookmark-btn ${isBookmarksActive ? 'active' : ''}`}
+                            onClick={toggleBookmarksView}
+                        >
                             <FaBookmark /> Bookmarks
                         </button>
                         <button className="add-story-btn" onClick={() => setShowAddStoryModal(true)}>
@@ -331,224 +319,172 @@ function Stories() {
 
             {showAddStoryModal && (
                 <AddStoryModal
-                    closeModal={() => {
-                        setShowAddStoryModal(false);
-                        setEditingStory(null);
-                    }}
+                    closeModal={() => setShowAddStoryModal(false)}
                     postStory={editingStory ? handleUpdateStory : handleAddStory}
                     editingStory={editingStory}
                 />
             )}
 
-            {showStoryModal && (
-                <div className="story-modal">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <div className="progress-bar" style={{ width: `${(currentSlideIndex + 1) / showStoryModal.slides.length * 100}%` }}></div>
-                            <div className="user-avatars">
-                                <img src={showStoryModal.userAvatar} alt="User Avatar" />
-                                <span className="avatar-badge">P</span>
-                            </div>
-                            <button onClick={() => setShowStoryModal(null)} className="close-btn">×</button>
-                        </div>
-                        {showStoryModal.slides[currentSlideIndex].videoUrl ? (
-                            <video
-                                src={showStoryModal.slides[currentSlideIndex].videoUrl}
-                                controls
-                                className="story-media"
-                            >
-                                Your browser does not support the video tag.
-                            </video>
-                        ) : (
-                            <img
-                                src={showStoryModal.slides[currentSlideIndex].imageUrl}
-                                alt="Story Slide"
-                                className="story-media"
-                            />
-                        )}
-
-                        {/* Navigation arrows */}
-                        <button
-                            onClick={goToPreviousSlide}
-                            className={`nav-arrow prev-arrow ${currentSlideIndex === 0 ? 'disabled' : ''}`}
-                            disabled={currentSlideIndex === 0}
-                        >
-                            &#8592;
-                        </button>
-                        <button
-                            onClick={goToNextSlide}
-                            className={`nav-arrow next-arrow ${currentSlideIndex === showStoryModal.slides.length - 1 ? 'disabled' : ''}`}
-                            disabled={currentSlideIndex === showStoryModal.slides.length - 1}
-                        >
-                            &#8594;
-                        </button>
-
-                        <div className="modal-footer">
-                            <button onClick={() => handleLike(showStoryModal._id)} className="action-btn like-btn">
-                                {likes[showStoryModal._id]?.isLiked ? <FaHeart color="red" /> : <FaRegHeart />}
-                                <span>{likes[showStoryModal._id]?.count || showStoryModal.likes || 0}</span>
-                            </button>
-                            <button
-                                onClick={() => handleDownload(showStoryModal.slides[currentSlideIndex].imageUrl, showStoryModal._id)}
-                                className="action-btn download-btn"
-                            >
-                                {downloadedImages[showStoryModal._id] ? <FaCheck /> : <FaDownload />}
-                            </button>
-                            <button onClick={handleShare} className="action-btn share-btn">
-                                <FaShareAlt />
-                            </button>
-                            <button onClick={() => handleBookmark(showStoryModal._id)} className="action-btn bookmark-btn">
-                                {bookmarks[showStoryModal._id] ? <FaBookmark color="blue" /> : <FaRegBookmark />}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {showBookmarks && (
+            {showBookmarksOnly ? (
                 <div className="bookmarked-stories-section">
                     <h2>Your Bookmarks</h2>
                     <div className="story-list">
-                        {bookmarkedStories.map((story, idx) => (
+                        {bookmarkedStories.length === 0 ? (
+                            <p>You have no bookmarked stories.</p>
+                        ) : (
+                            bookmarkedStories.map((bookmarkedStory, idx) => (
+                                <StoryBox
+                                    key={idx}
+                                    story={{
+                                        _id: bookmarkedStory.storyId,
+                                        category: bookmarkedStory.category,
+                                        slides: [{
+                                            heading: bookmarkedStory.heading,
+                                            description: bookmarkedStory.description,
+                                            imageUrl: bookmarkedStory.imageUrl,
+                                            videoUrl: bookmarkedStory.videoUrl
+                                        }]
+                                    }}
+                                    onClick={() => openStoryModal({
+                                        _id: bookmarkedStory.storyId,
+                                        category: bookmarkedStory.category,
+                                        slides: [{
+                                            heading: bookmarkedStory.heading,
+                                            description: bookmarkedStory.description,
+                                            imageUrl: bookmarkedStory.imageUrl,
+                                            videoUrl: bookmarkedStory.videoUrl
+                                        }]
+                                    }, bookmarkedStory.slideIndex)}
+                                    showEditButton={false}
+                                />
+                            ))
+                        )}
+                    </div>
+                    {bookmarkedStories.length > 4 && (
+                        <button className="see-more-btn" onClick={handleSeeMore}>
+                            See more
+                        </button>
+                    )}
+                </div>
+            ) : (
+                <>
+                    {/* Category Selection */}
+                    <div className="categories-container">
+                        {categoryData.map((category, index) => (
                             <div
-                                key={idx}
-                                className="story-box"
-                                style={{
-                                    backgroundImage: `url(${story.slides[0].imageUrl})`,
-                                    backgroundSize: 'cover',
-                                    backgroundPosition: 'center',
-                                }}
-                                onClick={() => openStoryModal(story, idx)}
+                                key={index}
+                                className={`category-box ${selectedCategory === category.name ? 'active' : ''}`}
+                                style={{ backgroundImage: `url(${category.imageUrl})` }}
+                                onClick={() => setSelectedCategory(category.name)}
                             >
-                                <h3 className="story-heading">{story.slides[0].heading}</h3>
-                                <p className="story-description">{story.slides[0].description}</p>
+                                <span className="category-label">{category.name}</span>
                             </div>
                         ))}
                     </div>
-                </div>
-            )}
 
-            {/* Category Selection */}
-            <div className="categories-container">
-                {categoryData.map((category, index) => (
-                    <div
-                        key={index}
-                        className={`category-box ${selectedCategory === category.name ? 'active' : ''}`}
-                        style={{ backgroundImage: `url(${category.imageUrl})` }}
-                        onClick={() => setSelectedCategory(category.name)}
-                    >
-                        <span className="category-label">{category.name}</span>
-                    </div>
-                ))}
-            </div>
-
-            {/* Your Stories Section */}
-            {token && (
-                <div className="your-stories-section">
-                    <h2>Your Stories</h2>
-                    {userStories.length === 0 ? (
-                        <p>You haven't created any stories yet.</p>
-                    ) : (
-                        <div className="story-list">
-                            {userStories.map((story, idx) => (
-                                <div
-                                    key={idx}
-                                    className="story-box"
-                                    style={{
-                                        backgroundImage: `url(${story.slides[0].imageUrl})`,
-                                        backgroundSize: 'cover',
-                                        backgroundPosition: 'center',
-                                    }}
-                                    onClick={() => openStoryModal(story, idx)}
-                                >
-                                    <h3 className="story-heading">{story.slides[0].heading}</h3>
-                                    <button className="edit-btn" onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEditStory(story);
-                                    }}>
-                                        <FaEdit /> Edit
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Show top stories */}
-            {selectedCategory === 'All' ? (
-                categoryData.slice(1).map((category, index) => {
-                    const categoryStories = filteredStories(category.name).slice(0, 4);
-                    return (
-                        <div key={index} className="category-section">
-                            <h2>Top Stories About {category.name}</h2>
-                            {categoryStories.length === 0 ? (
-                                <p>No stories available in this category.</p>
+                    {/* Your Stories Section */}
+                    {token && (
+                        <div className="your-stories-section">
+                            <h2>Your Stories</h2>
+                            {userStories.length === 0 ? (
+                                <p>You haven't created any stories yet.</p>
                             ) : (
-                                <div className="story-list">
-                                    {categoryStories.map((story, idx) => (
-                                        <div
-                                            key={idx}
-                                            className="story-box"
-                                            style={{
-                                                backgroundImage: `url(${story.slides[0].imageUrl})`,
-                                                backgroundSize: 'cover',
-                                                backgroundPosition: 'center',
-                                            }}
-                                            onClick={() => openStoryModal(story, idx)}
-                                        >
-                                            <h3 className="story-heading">{story.slides[0].heading}</h3>
-                                            {user && user._id === story.userId && (
-                                                <button className="edit-btn" onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleEditStory(story);
-                                                }}>
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
+                                <>
+                                    <div className="story-list">
+                                        {userStories.map((story, idx) => (
+                                            <StoryBox
+                                                key={idx}
+                                                story={story}
+                                                onClick={() => openStoryModal(story, idx)}
+                                                onEdit={handleEditStory}
+                                                showEditButton={true}
+                                            />
+                                        ))}
+                                    </div>
+                                    {userStories.length > 4 && (
+                                        <button className="see-more-btn" onClick={handleSeeMore}>
+                                            See more
+                                        </button>
+
+                                    )}
+                                </>
+
+
                             )}
                         </div>
-                    );
-                })
-            ) : (
-                <div className="category-section">
-                    <h2>Top Stories About {selectedCategory}</h2>
-                    {filteredStories(selectedCategory).length === 0 ? (
-                        <p>No stories available in this category.</p>
-                    ) : (
-                        <div className="story-list">
-                            {filteredStories(selectedCategory).slice(0, 4).map((story, idx) => (
-                                <div
-                                    key={idx}
-                                    className="story-box"
-                                    style={{
-                                        backgroundImage: `url(${story.slides[0].imageUrl})`,
-                                        backgroundSize: 'cover',
-                                        backgroundPosition: 'center',
-                                    }}
-                                    onClick={() => openStoryModal(story, idx)}
-                                >
-                                    <h3 className="story-heading">{story.slides[0].heading}</h3>
-                                    {user && user._id === story.userId && (
-                                        <button className="edit-btn" onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleEditStory(story);
-                                        }}>
-                                            <FaEdit /> Edit
-                                        </button>
+                    )}
+
+                    {/* Top Stories Section */}
+                    {selectedCategory === 'All' ? (
+                        categoryData.slice(1).map((category, index) => {
+                            const categoryStories = filteredStories(category.name).slice(0, 4);
+                            return (
+                                <div key={index} className="category-section">
+                                    <h2>Top Stories About {category.name}</h2>
+                                    {categoryStories.length === 0 ? (
+                                        <p>No stories available in this category.</p>
+                                    ) : (
+                                        <>
+                                            <div className="story-list">
+                                                {categoryStories.map((story, idx) => (
+                                                    <StoryBox
+                                                        key={idx}
+                                                        story={story}
+                                                        onClick={() => openStoryModal(story, idx)}
+                                                        onEdit={handleEditStory}
+                                                        showEditButton={user && user._id === story.userId}
+                                                    />
+                                                ))}
+                                            </div>
+                                            {userStories.length > 4 && (
+                                                <button className="see-more-btn" onClick={handleSeeMore}>
+                                                    See more
+                                                </button>
+
+                                            )}
+                                        </>
+
                                     )}
                                 </div>
-                            ))}
+                            );
+                        })
+                    ) : (
+                        <div className="category-section">
+                            <h2>Top Stories About {selectedCategory}</h2>
+                            {filteredStories(selectedCategory).length === 0 ? (
+                                <p>No stories available in this category.</p>
+                            ) : (
+                                <>
+                                    <div className="story-list">
+                                        {filteredStories(selectedCategory).slice(0, 4).map((story, idx) => (
+                                            <StoryBox
+                                                key={idx}
+                                                story={story}
+                                                onClick={() => openStoryModal(story, idx)}
+                                                onEdit={handleEditStory}
+                                                showEditButton={user && user._id === story.userId}
+                                            />
+                                        ))}
+                                    </div>
+                                    {filteredStories.length > 4 && (
+                                        <button className="see-more-btn" onClick={handleSeeMore}>
+                                            See more
+                                        </button>
+                                    )}
+                                </>
+                            )}
                         </div>
                     )}
-                </div>
+                </>
             )}
 
-
             {showRegisterModal && <Register closeModal={() => setShowRegisterModal(false)} />}
-            {showLoginModal && <Login closeModal={() => setShowLoginModal(false)} onLogin={handleLogin} />}
+            {showLoginModal && (
+                <Login
+                    closeModal={handleCloseLoginModal}
+                    onLogin={handleLogin}
+                />
+            )}
         </div>
     );
 }

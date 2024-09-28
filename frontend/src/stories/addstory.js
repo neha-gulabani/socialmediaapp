@@ -1,16 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/addstory.css';
 
-const AddStoryModal = ({ closeModal, postStory }) => {
-    const [slides, setSlides] = useState([{ id: 1, heading: '', description: '', imageUrl: '', videoUrl: '' }]);
+const AddStoryModal = ({ closeModal, postStory, editingStory }) => {
+    const [slides, setSlides] = useState([
+        { id: 1, heading: '', description: '', imageUrl: '', videoUrl: '' },
+        { id: 2, heading: '', description: '', imageUrl: '', videoUrl: '' },
+        { id: 3, heading: '', description: '', imageUrl: '', videoUrl: '' }
+    ]);
     const [currentSlide, setCurrentSlide] = useState(1);
     const [category, setCategory] = useState('');
+    const [error, setError] = useState('');
     const token = localStorage.getItem('token');
+    const isFirstSlide = currentSlide === slides[0].id;
+    const isLastSlide = currentSlide === slides[slides.length - 1].id;
 
     // List of predefined categories
     const categories = ['Food', 'Travel', 'World', 'Sports', 'Technology', 'Health', 'Science', 'Business', 'Entertainment', 'Politics'];
 
+    useEffect(() => {
+        if (editingStory) {
+            const editedSlides = editingStory.slides.map((slide, index) => ({
+                id: index + 1,
+                heading: slide.heading,
+                description: slide.description,
+                imageUrl: slide.imageUrl || '',
+                videoUrl: slide.videoUrl || ''
+            }));
+            // Ensure there are at least 3 slides
+            while (editedSlides.length < 3) {
+                editedSlides.push({
+                    id: editedSlides.length + 1,
+                    heading: '',
+                    description: '',
+                    imageUrl: '',
+                    videoUrl: ''
+                });
+            }
+            setSlides(editedSlides);
+            setCategory(editingStory.category);
+        } else {
+            // Reset to initial state when adding a new story
+            setSlides([
+                { id: 1, heading: '', description: '', imageUrl: '', videoUrl: '' },
+                { id: 2, heading: '', description: '', imageUrl: '', videoUrl: '' },
+                { id: 3, heading: '', description: '', imageUrl: '', videoUrl: '' }
+            ]);
+            setCategory('');
+        }
+    }, [editingStory]);
     const handleInputChange = (e, slideId) => {
         const { name, value } = e.target;
         setSlides(slides.map(slide =>
@@ -27,7 +65,7 @@ const AddStoryModal = ({ closeModal, postStory }) => {
     };
 
     const deleteSlide = (id) => {
-        if (slides.length > 1) {
+        if (slides.length > 3) {
             const newSlides = slides.filter(slide => slide.id !== id);
             setCurrentSlide(newSlides[0].id);
             setSlides(newSlides);
@@ -47,11 +85,11 @@ const AddStoryModal = ({ closeModal, postStory }) => {
             setCurrentSlide(slides[index + 1].id);
         }
     };
+
     const handlePostStory = async () => {
-        // Validate that each slide has either an image or video URL
         const isValid = slides.every(slide => slide.imageUrl || slide.videoUrl);
         if (!isValid) {
-            alert("Each slide must have either an image or video URL.");
+            setError("Each slide must have either an image or video URL.");
             return;
         }
 
@@ -62,11 +100,6 @@ const AddStoryModal = ({ closeModal, postStory }) => {
             videoUrl: slide.videoUrl,
         }));
 
-        console.log('Posting story data:', {
-            category,
-            slides: storyData,
-        });
-
         postStory({
             category,
             slides: storyData,
@@ -75,19 +108,47 @@ const AddStoryModal = ({ closeModal, postStory }) => {
         closeModal();
     };
 
-    const handleMediaUrlChange = (e, slideId) => {
+    const checkVideoDuration = (url) => {
+        return new Promise((resolve, reject) => {
+            const video = document.createElement('video');
+            video.onloadedmetadata = () => {
+                if (video.duration > 15) {
+                    reject(new Error('Video duration exceeds 15 seconds'));
+                } else {
+                    resolve(url);
+                }
+            };
+            video.onerror = () => reject(new Error('Invalid video URL'));
+            video.src = url;
+        });
+    };
+
+    const handleMediaUrlChange = async (e, slideId) => {
         const url = e.target.value;
         const isVideo = url.match(/\.(mp4|webm|ogg)$/i);
-        setSlides(slides.map(slide =>
-            slide.id === slideId
-                ? {
-                    ...slide,
-                    imageUrl: isVideo ? '' : url,
-                    videoUrl: isVideo ? url : ''
-                }
-                : slide
-        ));
+
+        if (isVideo) {
+            try {
+                await checkVideoDuration(url);
+                setError('');
+                setSlides(slides.map(slide =>
+                    slide.id === slideId
+                        ? { ...slide, imageUrl: '', videoUrl: url }
+                        : slide
+                ));
+            } catch (error) {
+                setError(error.message);
+            }
+        } else {
+            setError('');
+            setSlides(slides.map(slide =>
+                slide.id === slideId
+                    ? { ...slide, imageUrl: url, videoUrl: '' }
+                    : slide
+            ));
+        }
     };
+
     return (
         <div className="addstory">
             <div className="add-story-modal">
@@ -100,7 +161,7 @@ const AddStoryModal = ({ closeModal, postStory }) => {
                                 onClick={() => setCurrentSlide(slide.id)}
                             >
                                 Slide {slide.id}
-                                {currentSlide === slide.id && slides.length > 1 && slide.id !== 1 && (
+                                {currentSlide === slide.id && slides.length > 3 && slide.id !== 1 && (
                                     <button className="delete-slide" onClick={() => deleteSlide(slide.id)}>×</button>
                                 )}
                             </button>
@@ -143,8 +204,6 @@ const AddStoryModal = ({ closeModal, postStory }) => {
                                 value={slide.imageUrl || slide.videoUrl}
                                 onChange={(e) => handleMediaUrlChange(e, slide.id)}
                             />
-
-                            {/* Scrolling Category Selection */}
                             <div className="form-group category-group">
                                 <label htmlFor="category">Category :</label>
                                 <select
@@ -152,7 +211,7 @@ const AddStoryModal = ({ closeModal, postStory }) => {
                                     name="category"
                                     value={category}
                                     onChange={(e) => setCategory(e.target.value)}
-                                    className="scrollable-dropdown" // Add a class for styling
+                                    className="scrollable-dropdown"
                                 >
                                     <option value="">Select category</option>
                                     {categories.map((cat, index) => (
@@ -164,12 +223,27 @@ const AddStoryModal = ({ closeModal, postStory }) => {
                     </div>
                 ))}
 
+                {error && <div className="error-message">{error}</div>}
                 <div className="button-group">
                     <div>
-                        <button className="btn previous" onClick={handlePrevious}>Previous</button>
-                        <button className="btn next" onClick={handleNext}>Next</button>
+                        <button
+                            className={`btn previous ${isFirstSlide ? 'disabled' : ''}`}
+                            onClick={handlePrevious}
+                            disabled={isFirstSlide}
+                        >
+                            Previous
+                        </button>
+                        <button
+                            className={`btn next ${isLastSlide ? 'disabled' : ''}`}
+                            onClick={handleNext}
+                            disabled={isLastSlide}
+                        >
+                            Next
+                        </button>
                     </div>
-                    <button className="btn post" onClick={handlePostStory}>Post</button>
+                    <button className="btn post" onClick={handlePostStory}>
+                        {editingStory ? 'Update' : 'Post'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -177,5 +251,4 @@ const AddStoryModal = ({ closeModal, postStory }) => {
 };
 
 export default AddStoryModal;
-
 
