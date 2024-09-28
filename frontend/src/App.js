@@ -10,7 +10,8 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Stories />} />
-          <Route path="/story/:storyId" element={<StoryView />} />
+          {/* <Route path="/story/:storyId" element={<StoryView />} /> */}
+          {/* <Route path="/story/:storyId" element={<StoryView />} /> */}
         </Routes>
       </Router>
     </div>

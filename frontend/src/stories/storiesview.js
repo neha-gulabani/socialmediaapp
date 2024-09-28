@@ -5,14 +5,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Login from '../user/login';
 import { FaBookmark, FaCheck, FaHeart, FaRegHeart, FaDownload, FaShareAlt, FaRegBookmark } from 'react-icons/fa';
 
-function StoryView() {
+function StoryView({ selectedStory, setSelectedStory }) {
     const [story, setStory] = useState(null);
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
     const [likes, setLikes] = useState({});
     const [bookmarks, setBookmarks] = useState({});
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [downloadedImages, setDownloadedImages] = useState({});
-    const { storyId } = useParams();
+    // const { storyId } = useParams();
     const navigate = useNavigate();
     const token = localStorage.getItem("token");
 
@@ -20,11 +20,14 @@ function StoryView() {
 
         fetchStory();
 
-    }, [storyId, token]);
+
+    }, [selectedStory, token]);
+
+    console.log('selectedStory:', selectedStory)
 
     const fetchStory = async () => {
         try {
-            const response = await axios.get(`http://localhost:5000/api/stories/${storyId}`, {
+            const response = await axios.get(`http://localhost:5000/api/stories/${selectedStory._id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setStory(response.data);
@@ -43,7 +46,7 @@ function StoryView() {
             return;
         }
         try {
-            const response = await axios.post(`http://localhost:5000/api/stories/like/${storyId}/${slideIndex}`, {}, {
+            const response = await axios.post(`http://localhost:5000/api/stories/like/${selectedStory._id}/${slideIndex}`, {}, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setStory(prevStory => {
@@ -56,7 +59,24 @@ function StoryView() {
         }
     };
 
-    const handleBookmark = async (slideIndex) => {
+    // const fetchBookmarkedStories = async () => {
+    //     try {
+    //         const response = await axios.get('http://localhost:5000/api/stories/bookmarked', {
+    //             headers: { Authorization: `Bearer ${token}` },
+    //         });
+    //         setBookmarkedStories(response.data);
+
+    //         // Update bookmarks state
+    //         const newBookmarks = {};
+    //         response.data.forEach(story => {
+    //             newBookmarks[story._id] = true;
+    //         });
+    //         setBookmarks(newBookmarks);
+    //     } catch (error) {
+    //         console.error('Error fetching bookmarked stories:', error);
+    //     }
+    // };
+    const handleBookmark = async (storyId, slideIndex = 0) => {
         if (!token) {
             setShowLoginModal(true);
             return;
@@ -67,12 +87,16 @@ function StoryView() {
             });
             setBookmarks(prevBookmarks => ({
                 ...prevBookmarks,
-                [slideIndex]: response.data.bookmarked
-                    ? [...(prevBookmarks[slideIndex] || []), token]
-                    : (prevBookmarks[slideIndex] || []).filter(id => id !== token)
+                [storyId]: response.data.bookmarked
             }));
+
+            // Refresh bookmarked stories if the story was bookmarked
+            // if (response.data.bookmarked) {
+            //     fetchBookmarkedStories();
+            // }
         } catch (error) {
             console.error('Error bookmarking story:', error);
+            alert('Failed to bookmark the story. Please try again.');
         }
     };
 
@@ -93,11 +117,11 @@ function StoryView() {
             document.body.removeChild(link);
 
             // Mark the image as downloaded
-            setDownloadedImages(prev => ({ ...prev, [storyId]: true }));
+            setDownloadedImages(prev => ({ ...prev, [selectedStory._id]: true }));
 
             // Reset the icon after 3 seconds
             setTimeout(() => {
-                setDownloadedImages(prev => ({ ...prev, [storyId]: false }));
+                setDownloadedImages(prev => ({ ...prev, [selectedStory._id]: false }));
             }, 3000);
         } catch (error) {
             console.error('Error downloading image:', error);
@@ -110,7 +134,7 @@ function StoryView() {
             setShowLoginModal(true);
             return;
         }
-        const storyUrl = `${window.location.origin}/story/${story._id}`;
+        const storyUrl = `${window.location.origin}/?storyId=${selectedStory._id}`;
 
         navigator.clipboard.writeText(storyUrl).then(() => {
             alert('Story link copied to clipboard!');
@@ -141,8 +165,9 @@ function StoryView() {
         <div className="story-modal">
             <div className="modal-content">
                 <div className="modal-header">
+
                     <div className="progress-bar" style={{ width: `${(currentSlideIndex + 1) / story.slides.length * 100}%` }}></div>
-                    <button onClick={() => navigate('/')} className="close-btn">×</button>
+                    <button onClick={() => setSelectedStory(null)} className="close-btn">×</button>
                 </div>
 
                 {currentSlide.videoUrl ? (
@@ -186,12 +211,12 @@ function StoryView() {
                         onClick={() => handleDownload(currentSlide.imageUrl)}
                         className="action-btn download-btn"
                     >
-                        {downloadedImages[storyId] ? <FaCheck /> : <FaDownload />}
+                        {downloadedImages[selectedStory._id] ? <FaCheck /> : <FaDownload />}
                     </button>
                     <button onClick={handleShare} className="action-btn share-btn">
                         <FaShareAlt />
                     </button>
-                    <button onClick={() => handleBookmark(currentSlideIndex)} className="action-btn bookmark-btn">
+                    <button onClick={() => handleBookmark(selectedStory._id, currentSlideIndex)} className="action-btn bookmark-btn">
                         {bookmarks[currentSlideIndex]?.includes(token) ? <FaBookmark color="blue" /> : <FaRegBookmark />}
                     </button>
                 </div>

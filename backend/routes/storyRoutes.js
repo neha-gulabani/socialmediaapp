@@ -235,14 +235,20 @@ router.post('/bookmark/:storyId/:slideIndex', middleware, async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
+        console.log('User bookmarks:', user.bookmarks);
+
         const bookmarkIndex = user.bookmarks.findIndex(
-            b => b.story.toString() === storyId && b.slide === parseInt(slideIndex)
+            b => b && b.story && b.story.toString() === storyId && b.slide === parseInt(slideIndex)
         );
+
+        console.log('Bookmark index:', bookmarkIndex);
 
         if (bookmarkIndex === -1) {
             user.bookmarks.push({ story: storyId, slide: parseInt(slideIndex) });
+            console.log('Added new bookmark');
         } else {
             user.bookmarks.splice(bookmarkIndex, 1);
+            console.log('Removed existing bookmark');
         }
 
         await user.save();

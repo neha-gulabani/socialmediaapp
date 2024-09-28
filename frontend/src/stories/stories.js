@@ -6,8 +6,9 @@ import Login from '../user/login';
 import { FaBookmark, FaPlus, FaCheck, FaUserCircle, FaEdit, FaHeart, FaRegHeart, FaDownload, FaShareAlt, FaRegBookmark } from 'react-icons/fa';
 import { GiHamburgerMenu } from 'react-icons/gi';
 import AddStoryModal from './addstory';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import StoryBox from './storybox';
+import StoryView from './storiesview';
 
 const categoryData = [
     { name: 'All', imageUrl: "https://i.ibb.co/YWGR3n1/a-book-6213537-1280.jpg" },
@@ -43,6 +44,7 @@ function Stories() {
     const navigate = useNavigate();
     const location = useLocation();
     const token = localStorage.getItem("token");
+    const [selectedStory, setSelectedStory] = useState(null);
 
     useEffect(() => {
         console.log(token);
@@ -59,7 +61,7 @@ function Stories() {
         if (storyIdInUrl) {
             const story = stories.find(s => s._id === storyIdInUrl);
             if (story) {
-                openStoryModal(story);
+                setSelectedStory(story);
             }
         }
     }, [location, stories]);
@@ -70,6 +72,13 @@ function Stories() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setBookmarkedStories(response.data);
+
+            // Update bookmarks state
+            const newBookmarks = {};
+            response.data.forEach(story => {
+                newBookmarks[story._id] = true;
+            });
+            setBookmarks(newBookmarks);
         } catch (error) {
             console.error('Error fetching bookmarked stories:', error);
         }
@@ -88,21 +97,27 @@ function Stories() {
         }
     };
 
-    const handleBookmark = async (storyId) => {
+    const handleBookmark = async (storyId, slideIndex = 0) => {
         if (!token) {
             setShowLoginModal(true);
             return;
         }
         try {
-            const response = await axios.post(`http://localhost:5000/api/stories/bookmark/${storyId}`, {}, {
+            const response = await axios.post(`http://localhost:5000/api/stories/bookmark/${storyId}/${slideIndex}`, {}, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setBookmarks(prevBookmarks => ({
                 ...prevBookmarks,
                 [storyId]: response.data.bookmarked
             }));
+
+            // Refresh bookmarked stories if the story was bookmarked
+            if (response.data.bookmarked) {
+                fetchBookmarkedStories();
+            }
         } catch (error) {
             console.error('Error bookmarking story:', error);
+            alert('Failed to bookmark the story. Please try again.');
         }
     };
 
@@ -195,14 +210,11 @@ function Stories() {
     };
 
     const openStoryModal = (story, index) => {
-        navigate(`/story/${story._id}`);
-        setShowStoryModal(story);
-        setCurrentStoryIndex(index);
-        setCurrentSlideIndex(0);
+        setSelectedStory(story);
+        navigate(`/?storyId=${story._id}`);
     };
-
     const closeStoryModal = () => {
-        setShowStoryModal(null);
+        setSelectedStory(null);
         navigate('/');
     };
 
@@ -212,7 +224,7 @@ function Stories() {
     };
 
     const handleSeeMore = () => {
-        setVisibleUserStories(prevVisible => prevVisible + 4);
+        setVisibleUserStories(prevVisible => prevVisible + 3);
     };
 
     const handleLogout = () => {
@@ -279,6 +291,10 @@ function Stories() {
             console.error('Error updating story:', error);
         }
     };
+
+    console.log(selectedStory)
+
+
 
     return (
         <div className="stories">
@@ -391,7 +407,7 @@ function Stories() {
                             ) : (
                                 <>
                                     <div className="story-list">
-                                        {userStories.map((story, idx) => (
+                                        {userStories.slice(0, visibleUserStories).map((story, idx) => (
                                             <StoryBox
                                                 key={idx}
                                                 story={story}
@@ -401,7 +417,7 @@ function Stories() {
                                             />
                                         ))}
                                     </div>
-                                    {userStories.length > 4 && (
+                                    {userStories.length > 4 && visibleUserStories % 4 == 0 && (
                                         <button className="see-more-btn" onClick={handleSeeMore}>
                                             See more
                                         </button>
@@ -484,6 +500,12 @@ function Stories() {
                     closeModal={handleCloseLoginModal}
                     onLogin={handleLogin}
                 />
+            )}
+            {selectedStory && (
+                <>
+                    <StoryView selectedStory={selectedStory} setSelectedStory={setSelectedStory} />
+
+                </>
             )}
         </div>
     );
