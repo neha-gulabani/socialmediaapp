@@ -12,6 +12,9 @@ function StoryView({ selectedStory, setSelectedStory }) {
     const [bookmarks, setBookmarks] = useState({});
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [downloadedImages, setDownloadedImages] = useState({});
+    const [likeCount, setLikeCount] = useState(0);
+    const [isLiked, setIsLiked] = useState(false);
+    const [isBookmarked, setIsBookmarked] = useState(false);
     // const { storyId } = useParams();
     const navigate = useNavigate();
     const token = localStorage.getItem("token");
@@ -23,7 +26,27 @@ function StoryView({ selectedStory, setSelectedStory }) {
 
     }, [selectedStory, token]);
 
+    useEffect(() => {
+        // Check if the current slide is bookmarked
+        const isCurrentSlideBookmarked = bookmarks[selectedStory._id]?.includes(currentSlideIndex);
+        setIsBookmarked(isCurrentSlideBookmarked);
+    }, [currentSlideIndex, bookmarks, selectedStory._id]);
+
     console.log('selectedStory:', selectedStory)
+
+    useEffect(() => {
+        if (story && story.slides) {
+            const currentLikes = story.slides[currentSlideIndex].likes || [];
+            if (Array.isArray(currentLikes)) {
+                setIsLiked(currentLikes.includes(token));
+                setLikeCount(currentLikes.length);
+                return;
+            }
+
+
+            return;
+        }
+    }, [story, currentSlideIndex, token]);
 
     const fetchStory = async () => {
         try {
@@ -31,15 +54,17 @@ function StoryView({ selectedStory, setSelectedStory }) {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setStory(response.data);
-            setLikes(response.data.likes || []);
-            setBookmarks(response.data.bookmarks || []);
+            const initialLikes = {};
+            response.data.slides.forEach((slide, index) => {
+                initialLikes[index] = slide.likes || [];
+            });
+            setLikes(initialLikes);
         } catch (error) {
             console.error('Error fetching story:', error);
             alert('Failed to load the story. It may have been deleted or you may not have permission to view it.');
             navigate('/');
         }
     };
-
     const handleLike = async (slideIndex) => {
         if (!token) {
             setShowLoginModal(true);
@@ -49,16 +74,31 @@ function StoryView({ selectedStory, setSelectedStory }) {
             const response = await axios.post(`http://localhost:5000/api/stories/like/${selectedStory._id}/${slideIndex}`, {}, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+
+            // Optimistic update
+            setIsLiked(prev => !prev);
+            setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+
+            // Update likes state
+            setLikes(prevLikes => {
+                const newLikes = { ...prevLikes };
+                newLikes[slideIndex] = response.data.likes || [];
+                return newLikes;
+            });
+
+            // Update story state
             setStory(prevStory => {
                 const updatedSlides = [...prevStory.slides];
-                updatedSlides[slideIndex].likes = response.data.likes;
+                updatedSlides[slideIndex].likes = response.data.likes || [];
                 return { ...prevStory, slides: updatedSlides };
             });
         } catch (error) {
             console.error('Error liking story:', error);
+            // Revert optimistic update if there's an error
+            setIsLiked(prev => !prev);
+            setLikeCount(prev => isLiked ? prev + 1 : prev - 1);
         }
     };
-
     // const fetchBookmarkedStories = async () => {
     //     try {
     //         const response = await axios.get('http://localhost:5000/api/stories/bookmarked', {
@@ -76,24 +116,22 @@ function StoryView({ selectedStory, setSelectedStory }) {
     //         console.error('Error fetching bookmarked stories:', error);
     //     }
     // };
-    const handleBookmark = async (storyId, slideIndex = 0) => {
+    const handleBookmark = async () => {
         if (!token) {
             setShowLoginModal(true);
             return;
         }
         try {
-            const response = await axios.post(`http://localhost:5000/api/stories/bookmark/${storyId}/${slideIndex}`, {}, {
+            const response = await axios.post(`http://localhost:5000/api/stories/bookmark/${selectedStory._id}/${currentSlideIndex}`, {}, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+            setIsBookmarked(response.data.bookmarked);
             setBookmarks(prevBookmarks => ({
                 ...prevBookmarks,
-                [storyId]: response.data.bookmarked
+                [selectedStory._id]: response.data.bookmarked
+                    ? [...(prevBookmarks[selectedStory._id] || []), currentSlideIndex]
+                    : (prevBookmarks[selectedStory._id] || []).filter(index => index !== currentSlideIndex)
             }));
-
-            // Refresh bookmarked stories if the story was bookmarked
-            // if (response.data.bookmarked) {
-            //     fetchBookmarkedStories();
-            // }
         } catch (error) {
             console.error('Error bookmarking story:', error);
             alert('Failed to bookmark the story. Please try again.');
@@ -158,8 +196,10 @@ function StoryView({ selectedStory, setSelectedStory }) {
     }
 
     const currentSlide = story.slides[currentSlideIndex];
-    const likesArray = Array.isArray(currentSlide?.likes) ? currentSlide.likes : [];
-    const bookmarksArray = Array.isArray(currentSlide?.bookmarks) ? currentSlide.bookmarks : [];
+    const currentLikes = likes[currentSlideIndex] || [];
+    // const isLiked = Array.isArray(currentLikes) && currentLikes.includes(token);
+    console.log('current likes', currentLikes)
+    // const likeCount = Array.isArray(currentLikes) ? currentLikes.length : 0;
 
     return (
         <div className="story-modal">
@@ -204,9 +244,9 @@ function StoryView({ selectedStory, setSelectedStory }) {
 
 
                 <div className="modal-footer">
-                    <button onClick={() => handleLike(currentSlideIndex)} className="action-btn like-btn">
-                        {likes[currentSlideIndex]?.includes(token) ? <FaHeart color="red" /> : <FaRegHeart />}
-                        <span>{likes[currentSlideIndex]?.length || 0}</span>
+                    <button onClick={() => handleLike(currentSlideIndex)} disabled={isLiked} className="action-btn like-btn">
+                        {isLiked ? <FaHeart style={{ color: "red" }} /> : <FaRegHeart />}
+                        <span>{likeCount}</span>
                     </button>
                     <button
                         onClick={() => handleDownload(currentSlide.imageUrl)}
@@ -215,8 +255,8 @@ function StoryView({ selectedStory, setSelectedStory }) {
                         {downloadedImages[selectedStory._id] ? <FaCheck /> : <FaDownload />}
                     </button>
 
-                    <button onClick={() => handleBookmark(selectedStory._id, currentSlideIndex)} className="action-btn bookmark-btn">
-                        {bookmarks[currentSlideIndex]?.includes(token) ? <FaBookmark color="blue" /> : <FaRegBookmark />}
+                    <button onClick={handleBookmark} className="action-btn bookmark-btn">
+                        {isBookmarked ? <FaBookmark style={{ color: "blue" }} /> : <FaRegBookmark />}
                     </button>
                 </div>
 
