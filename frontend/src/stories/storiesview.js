@@ -165,15 +165,29 @@ function StoryView({ selectedStory, setSelectedStory }) {
         <div className="story-modal">
             <div className="modal-content">
                 <div className="modal-header">
+                    <div className='progressbar-wrapper'>
+                        {[...Array(story.slides.length)].map((_, index) => (
+                            <div className="progress-bar" key={index} style={{
+                                opacity: index <= currentSlideIndex ? 1 : .5
+                            }} />
+                        ))}
+                    </div>
 
-                    <div className="progress-bar" style={{ width: `${(currentSlideIndex + 1) / story.slides.length * 100}%` }}></div>
                     <button onClick={() => setSelectedStory(null)} className="close-btn">×</button>
+                    <button onClick={handleShare} className="action-btn share-btn">
+                        <FaShareAlt />
+                    </button>
                 </div>
 
                 {currentSlide.videoUrl ? (
                     <video
                         src={currentSlide.videoUrl}
-                        controls
+                        autoPlay
+                        loop
+                        playsInline
+                        webkit-playsinline="true"
+                        x-webkit-airplay="true"
+                        preload="auto"
                         className="story-media"
                     >
                         Your browser does not support the video tag.
@@ -187,20 +201,7 @@ function StoryView({ selectedStory, setSelectedStory }) {
                 )}
 
                 {/* Navigation arrows */}
-                <button
-                    onClick={goToPreviousSlide}
-                    className={`nav-arrow prev-arrow ${currentSlideIndex === 0 ? 'disabled' : ''}`}
-                    disabled={currentSlideIndex === 0}
-                >
-                    &#8592;
-                </button>
-                <button
-                    onClick={goToNextSlide}
-                    className={`nav-arrow next-arrow ${currentSlideIndex === story.slides.length - 1 ? 'disabled' : ''}`}
-                    disabled={currentSlideIndex === story.slides.length - 1}
-                >
-                    &#8594;
-                </button>
+
 
                 <div className="modal-footer">
                     <button onClick={() => handleLike(currentSlideIndex)} className="action-btn like-btn">
@@ -213,14 +214,27 @@ function StoryView({ selectedStory, setSelectedStory }) {
                     >
                         {downloadedImages[selectedStory._id] ? <FaCheck /> : <FaDownload />}
                     </button>
-                    <button onClick={handleShare} className="action-btn share-btn">
-                        <FaShareAlt />
-                    </button>
+
                     <button onClick={() => handleBookmark(selectedStory._id, currentSlideIndex)} className="action-btn bookmark-btn">
                         {bookmarks[currentSlideIndex]?.includes(token) ? <FaBookmark color="blue" /> : <FaRegBookmark />}
                     </button>
                 </div>
+
             </div>
+            <button
+                onClick={goToPreviousSlide}
+                className={`nav-arrow prev-arrow ${currentSlideIndex === 0 ? 'disabled' : ''}`}
+                disabled={currentSlideIndex === 0}
+            >
+                &#8592;
+            </button>
+            <button
+                onClick={goToNextSlide}
+                className={`nav-arrow next-arrow ${currentSlideIndex === story.slides.length - 1 ? 'disabled' : ''}`}
+                disabled={currentSlideIndex === story.slides.length - 1}
+            >
+                &#8594;
+            </button>
 
             {showLoginModal && <Login closeModal={() => setShowLoginModal(false)} onLogin={() => setShowLoginModal(false)} />}
         </div>
