@@ -35,6 +35,7 @@ function Stories() {
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
     const [user, setUser] = useState(null);
     const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
+    const [bookmarkSlideIndex, setBookmarkSlideIndex] = useState(undefined);
 
     const [likes, setLikes] = useState({});
     const [bookmarks, setBookmarks] = useState({});
@@ -204,7 +205,15 @@ function Stories() {
     const openStoryModal = (story, index) => {
         setSelectedStory(story);
         navigate(`/?storyId=${story._id}`);
+
     };
+
+    const openBookmarkIndex = (story, index) => {
+        setBookmarkSlideIndex(index)
+        setSelectedStory(story);
+        navigate(`/?storyId=${story._id}`);
+
+    }
     const closeStoryModal = () => {
         setSelectedStory(null);
         navigate('/');
@@ -313,7 +322,7 @@ function Stories() {
                                             videoUrl: bookmarkedStory.videoUrl
                                         }]
                                     }}
-                                    onClick={() => openStoryModal({
+                                    onClick={() => openBookmarkIndex({
                                         _id: bookmarkedStory.storyId,
                                         category: bookmarkedStory.category,
                                         slides: [{
@@ -388,7 +397,7 @@ function Stories() {
             {
                 selectedStory && (
                     <>
-                        <StoryView selectedStory={selectedStory} setSelectedStory={setSelectedStory} />
+                        <StoryView selectedStory={selectedStory} setSelectedStory={setSelectedStory} bookmarkedIndex={bookmarkSlideIndex} setBookmarkSlideIndex={setBookmarkSlideIndex} />
 
                     </>
                 )
