@@ -4,6 +4,7 @@ import '../styles/stories.css';
 import { useNavigate } from 'react-router-dom';
 import Login from '../user/login';
 import { FaBookmark, FaCheck, FaHeart, FaRegHeart, FaDownload, FaShareAlt, FaRegBookmark } from 'react-icons/fa';
+import { Send } from 'lucide-react';
 
 function StoryView({ selectedStory, setSelectedStory, bookmarkedIndex, setBookmarkSlideIndex }) {
     const [story, setStory] = useState(null);
@@ -17,11 +18,13 @@ function StoryView({ selectedStory, setSelectedStory, bookmarkedIndex, setBookma
     const [isBookmarked, setIsBookmarked] = useState(false);
     const navigate = useNavigate();
     const token = localStorage.getItem("token");
+    const [showShareNotification, setShowShareNotification] = useState(false);
 
     const isBookmarkedMode = bookmarkedIndex !== undefined;
 
     useEffect(() => {
         fetchStory();
+        checkLikeBookmarkStatus();
     }, [selectedStory, token]);
 
     useEffect(() => {
@@ -39,6 +42,24 @@ function StoryView({ selectedStory, setSelectedStory, bookmarkedIndex, setBookma
         const slideIndex = isBookmarkedMode ? bookmarkedIndex : currentSlideIndex;
         setIsBookmarked(bookmarks[selectedStory._id]?.includes(slideIndex));
     }, [currentSlideIndex, bookmarks, selectedStory._id, bookmarkedIndex, isBookmarkedMode]);
+
+    const checkLikeBookmarkStatus = async () => {
+        if (!token || !selectedStory) return;
+
+        try {
+            const response = await axios.get(`http://localhost:5000/api/stories/checkLikeBookmark/${selectedStory._id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (response.data.isLiked) {
+                setIsLiked(true)
+            }
+            if (response.data.isBookmarked) {
+                setIsBookmarked(true)
+            }
+        } catch (error) {
+            console.error('Error checking like/bookmark status:', error);
+        }
+    };
 
     const fetchStory = async () => {
         try {
@@ -70,7 +91,7 @@ function StoryView({ selectedStory, setSelectedStory, bookmarkedIndex, setBookma
             });
 
             setIsLiked(prev => !prev);
-            setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+            setLikeCount(prev => isLiked ? prev : prev + 1);
 
             setLikes(prevLikes => ({
                 ...prevLikes,
@@ -147,7 +168,8 @@ function StoryView({ selectedStory, setSelectedStory, bookmarkedIndex, setBookma
         const slideIndex = isBookmarkedMode ? bookmarkedIndex : currentSlideIndex;
         const storyUrl = `${window.location.origin}/?storyId=${selectedStory._id}&slideIndex=${slideIndex}`;
         navigator.clipboard.writeText(storyUrl).then(() => {
-            alert('Story link copied to clipboard!');
+            setShowShareNotification(true);
+            setTimeout(() => setShowShareNotification(false), 3000);
         });
     };
 
@@ -188,7 +210,7 @@ function StoryView({ selectedStory, setSelectedStory, bookmarkedIndex, setBookma
                         navigate('/')
                     }} className="close-btn">×</button>
                     <button onClick={handleShare} className="action-btn share-btn">
-                        <FaShareAlt />
+                        <Send />
                     </button>
                 </div>
 
@@ -213,20 +235,34 @@ function StoryView({ selectedStory, setSelectedStory, bookmarkedIndex, setBookma
                     />
                 )}
 
+                {showShareNotification && (
+                    <div className="share-notification">
+                        <p>Link copied to clipboard</p>
+                    </div>
+                )}
+
+                <div className="slide-content">
+                    <h2 className="slide-heading">{currentSlide.heading}</h2>
+                    <p className="slide-description">{currentSlide.description}</p>
+                </div>
+
                 <div className="modal-footer">
-                    <button onClick={handleLike} disabled={isLiked} className="action-btn like-btn">
-                        {isLiked ? <FaHeart style={{ color: "red" }} /> : <FaRegHeart />}
-                        <span>{likeCount}</span>
+                    <button onClick={handleBookmark} className="action-btn bookmark-btn">
+                        {isBookmarked ? <FaBookmark style={{ color: "blue" }} /> : <FaRegBookmark />}
                     </button>
+
                     <button
                         onClick={() => handleDownload(currentSlide.imageUrl)}
                         className="action-btn download-btn"
                     >
                         {downloadedImages[selectedStory._id] ? <FaCheck /> : <FaDownload />}
                     </button>
-                    <button onClick={handleBookmark} className="action-btn bookmark-btn">
-                        {isBookmarked ? <FaBookmark style={{ color: "blue" }} /> : <FaRegBookmark />}
+
+                    <button onClick={handleLike} disabled={isLiked} className="action-btn like-btn">
+                        {isLiked ? <FaHeart style={{ color: "red" }} /> : <FaRegHeart />}
+                        <span>{likeCount}</span>
                     </button>
+
                 </div>
             </div>
 
@@ -237,14 +273,14 @@ function StoryView({ selectedStory, setSelectedStory, bookmarkedIndex, setBookma
                         className={`nav-arrow prev-arrow ${currentSlideIndex === 0 ? 'disabled' : ''}`}
                         disabled={currentSlideIndex === 0}
                     >
-                        &#8592;
+                        &lt;
                     </button>
                     <button
                         onClick={goToNextSlide}
                         className={`nav-arrow next-arrow ${currentSlideIndex === story.slides.length - 1 ? 'disabled' : ''}`}
                         disabled={currentSlideIndex === story.slides.length - 1}
                     >
-                        &#8594;
+                        &gt;
                     </button>
                 </>
             )}

@@ -9,7 +9,7 @@ import AddStoryModal from './addstory';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import StoryBox from './storybox';
 import StoryView from './storiesview';
-import Yourstories from './yourstories';
+// import Yourstories from './yourstories';
 import Filteredstories from './filteredstory';
 
 const categoryData = [
@@ -25,33 +25,39 @@ const categoryData = [
 
 function Stories() {
     const [stories, setStories] = useState([]);
-
+    const [yourStoryForMobile, setYourStoryForMobile] = useState(false)
     const [showAddStoryModal, setShowAddStoryModal] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState('All');
-    const [showStoryModal, setShowStoryModal] = useState(null);
     const [showRegisterModal, setShowRegisterModal] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
-    const [currentStoryIndex, setCurrentStoryIndex] = useState(null);
-    const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
     const [user, setUser] = useState(null);
     const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
     const [bookmarkSlideIndex, setBookmarkSlideIndex] = useState(undefined);
-
     const [likes, setLikes] = useState({});
     const [bookmarks, setBookmarks] = useState({});
     const [bookmarkedStories, setBookmarkedStories] = useState([]);
     const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
-    const [downloadedImages, setDownloadedImages] = useState({});
     const [visibleUserStories, setVisibleUserStories] = useState(4);
     const [isBookmarksActive, setIsBookmarksActive] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+    const [editingStory, setEditingStory] = useState(null);
     const token = localStorage.getItem("token");
     const [selectedStory, setSelectedStory] = useState(null);
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    const [userStories, setUserStories] = useState([]);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
 
     useEffect(() => {
-        console.log(token);
+
         fetchStories();
         fetchUserData();
         if (token) {
@@ -77,7 +83,7 @@ function Stories() {
             });
             setBookmarkedStories(response.data);
 
-            // Update bookmarks state
+
             const newBookmarks = {};
             response.data.forEach(story => {
                 newBookmarks[story._id] = true;
@@ -89,7 +95,6 @@ function Stories() {
     };
 
     const handleCloseLoginModal = () => {
-        console.log('close');
         setShowLoginModal(false);
     };
 
@@ -101,68 +106,7 @@ function Stories() {
         }
     };
 
-    const handleBookmark = async (storyId, slideIndex = 0) => {
-        if (!token) {
-            setShowLoginModal(true);
-            return;
-        }
-        try {
-            const response = await axios.post(`http://localhost:5000/api/stories/bookmark/${storyId}/${slideIndex}`, {}, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            setBookmarks(prevBookmarks => ({
-                ...prevBookmarks,
-                [storyId]: response.data.bookmarked
-            }));
 
-            // Refresh bookmarked stories if the story was bookmarked
-            if (response.data.bookmarked) {
-                fetchBookmarkedStories();
-            }
-        } catch (error) {
-            console.error('Error bookmarking story:', error);
-            alert('Failed to bookmark the story. Please try again.');
-        }
-    };
-
-    const handleDownload = async (imageUrl, storyId) => {
-        if (!token) {
-            setShowLoginModal(true);
-            return;
-        }
-        try {
-            const response = await fetch(imageUrl);
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'story-image.jpg';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            setDownloadedImages(prev => ({ ...prev, [storyId]: true }));
-
-            setTimeout(() => {
-                setDownloadedImages(prev => ({ ...prev, [storyId]: false }));
-            }, 3000);
-        } catch (error) {
-            console.error('Error downloading image:', error);
-            alert('Failed to download the image. Please try again.');
-        }
-    };
-
-    const handleShare = () => {
-        if (!token) {
-            setShowLoginModal(true);
-            return;
-        }
-        const storyUrl = `${window.location.origin}/story/${showStoryModal._id}`;
-        window.open(storyUrl, '_blank');
-        navigator.clipboard.writeText(storyUrl).then(() => {
-            alert('Story link copied to clipboard!');
-        });
-    };
 
     const fetchStories = async () => {
         try {
@@ -182,6 +126,20 @@ function Stories() {
             setLikes(initialLikes);
         } catch (error) {
             console.error('Error fetching stories:', error);
+        }
+    };
+
+    const fetchUserStories = async () => {
+        try {
+            const response = await axios.get('http://localhost:5000/api/stories/userstories', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            setUserStories(response.data);
+
+        } catch (error) {
+            console.error('Error fetching user stories:', error);
         }
     };
 
@@ -234,12 +192,14 @@ function Stories() {
         localStorage.removeItem('token');
     };
 
+
+
     const handleLogin = async (username, token) => {
         setUser({ username });
         localStorage.setItem('token', token);
         setShowLoginModal(false);
         fetchUserData();
-        // fetchUserStories();
+
         fetchBookmarkedStories();
     };
 
@@ -248,47 +208,111 @@ function Stories() {
     };
 
     const handleEditStory = (story) => {
-        // setEditingStory(story);
+        setEditingStory(story);
         setShowAddStoryModal(true);
     };
 
+    const handleAddStory = async (newStory) => {
+        try {
+            const storyPayload = {
+                category: newStory.category,
+                slides: newStory.slides
+            };
+
+            const response = await axios.post('http://localhost:5000/api/stories/add', storyPayload, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            setStories((prev) => [...prev, response.data]);
+            setUserStories([...userStories, response.data]);
+
+            setShowAddStoryModal(false);
+
+        } catch (error) {
+            console.error('Error adding story:', error);
+        }
+    };
+
+    const handleUpdateStory = async (updatedStory) => {
+        try {
+            const response = await axios.put(`http://localhost:5000/api/stories/${editingStory._id}`, updatedStory, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            const updatedStories = stories.map(story =>
+                story._id === editingStory._id ? response.data : story
+            );
+            setStories(updatedStories);
+
+            setUserStories(prevUserStories => prevUserStories.map(story =>
+                story._id === editingStory._id ? response.data : story
+            ));
+
+            setEditingStory(null);
+            setShowAddStoryModal(false);
 
 
 
+        } catch (error) {
+            console.error('Error updating story:', error);
 
+        }
+    };
 
-
-
-
-    console.log(bookmarkedStories)
-
-
+    useEffect(() => {
+        fetchUserStories()
+    }, [token])
 
     return (
         <div className="stories">
             <div className="top-bar">
                 {token ? (
-                    <div className="user-buttons">
-                        <button
-                            className={`bookmark-btn ${isBookmarksActive ? 'active' : ''}`}
-                            onClick={toggleBookmarksView}
-                        >
-                            <FaBookmark /> Bookmarks
-                        </button>
-                        <button className="add-story-btn" onClick={() => setShowAddStoryModal(true)}>
-                            <FaPlus /> Add Story
-                        </button>
+                    <>
+                        {!isMobile && (
+                            <div className="user-buttons">
+                                <button className="bookmark-btn" onClick={toggleBookmarksView}>
+                                    <FaBookmark /> Bookmarks
+                                </button>
+                                <button className="add-story-btn" onClick={() => setShowAddStoryModal(true)}>
+                                    <FaPlus /> Add Story
+                                </button>
+                            </div>
+                        )}
                         <div className="profile-container">
                             <FaUserCircle className="profile-picture" />
                             <GiHamburgerMenu onClick={toggleHamburgerMenu} className="hamburger-menu-toggle" />
-                            {showHamburgerMenu && (
-                                <div className="hamburger-menu">
-                                    {user && <p>{user.username}</p>}
-                                    <button onClick={handleLogout}>Logout</button>
-                                </div>
-                            )}
                         </div>
-                    </div>
+                        {showHamburgerMenu && (
+                            <div className="hamburger-menu">
+                                <button className="close-menu" onClick={toggleHamburgerMenu}>×</button>
+                                <div className="user-info">
+                                    <FaUserCircle className="user-avatar" />
+                                    <p>{user.username}</p>
+                                </div>
+                                {isMobile ? (
+                                    <>
+                                        <button className="menu-btn" onClick={() => {
+                                            setShowHamburgerMenu(false);
+                                            setYourStoryForMobile(true)
+                                            setShowBookmarksOnly(false);
+                                        }}>Your Story</button>
+                                        <button className="menu-btn" onClick={() => {
+                                            setShowAddStoryModal(true)
+                                            setShowHamburgerMenu(false);
+                                        }}>Add story</button>
+                                        <button className="menu-btn" onClick={() => {
+                                            setShowHamburgerMenu(false);
+                                            toggleBookmarksView()
+                                        }}><FaBookmark />Bookmarks</button>
+                                    </>
+                                ) : null}
+                                <button className="menu-btn logout" onClick={handleLogout}>Logout</button>
+                            </div>
+                        )}
+                    </>
                 ) : (
                     <div className="auth-buttons">
                         <button className="register-btn" onClick={() => setShowRegisterModal(true)}>
@@ -337,17 +361,10 @@ function Stories() {
                             ))
                         )}
                     </div>
-
-
-                    {bookmarkedStories.length > 4 && (
-                        <button className="see-more-btn" onClick={handleSeeMore}>
-                            See more
-                        </button>
-                    )}
                 </div>
             ) : (
                 <>
-                    {/* Category Selection */}
+
                     <div className="categories-container">
                         {categoryData.map((category, index) => (
                             <div
@@ -361,12 +378,42 @@ function Stories() {
                         ))}
                     </div>
 
-                    {/* Your Stories Section */}
-                    {token && (
-                        <Yourstories showAddStoryModal={showAddStoryModal} setStories={setStories} setShowAddStoryModal={setShowAddStoryModal} stories={stories} openStoryModal={openStoryModal} />
+
+                    {((token && !isMobile) || (token && isMobile && yourStoryForMobile)) && (
+                        <div className="your-stories-section">
+                            <h2>Your Stories</h2>
+                            {userStories.length === 0 ? (
+                                <p>You haven't created any stories yet.</p>
+                            ) : (
+                                <>
+                                    <div className="story-list">
+                                        {userStories.slice(0, visibleUserStories).map((story, idx) => (
+                                            <StoryBox
+                                                key={idx}
+                                                story={story}
+                                                onClick={() => openStoryModal(story, idx)}
+                                                onEdit={handleEditStory}
+                                                showEditButton={true}
+                                            />
+                                        ))}
+                                    </div>
+                                    {userStories.length > 4 && visibleUserStories % 4 == 0 && visibleUserStories <= userStories.length && (
+                                        <button className="see-more-btn" onClick={() => setVisibleUserStories(prevVisible => prevVisible + 4)}>
+                                            See more
+                                        </button>
+
+                                    )}
+                                </>
+
+
+                            )
+                            }
+
+
+                        </div >
                     )}
 
-                    {/* Top Stories Section */}
+
                     {selectedCategory === 'All' ? (
                         categoryData.slice(1).map((category, index) => {
                             const categoryStories = filteredStories(category.name).slice(0, 4);
@@ -391,6 +438,19 @@ function Stories() {
                     <Login
                         closeModal={handleCloseLoginModal}
                         onLogin={handleLogin}
+                    />
+                )
+            }
+
+            {
+                showAddStoryModal && (
+                    <AddStoryModal
+                        closeModal={() => {
+                            setShowAddStoryModal(false)
+                            setEditingStory(null)
+                        }}
+                        postStory={editingStory ? handleUpdateStory : handleAddStory}
+                        editingStory={editingStory}
                     />
                 )
             }

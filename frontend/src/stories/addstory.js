@@ -14,9 +14,10 @@ const AddStoryModal = ({ closeModal, postStory, editingStory }) => {
     const token = localStorage.getItem('token');
     const isFirstSlide = currentSlide === slides[0].id;
     const isLastSlide = currentSlide === slides[slides.length - 1].id;
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-    // List of predefined categories
-    const categories = ['Food', 'Travel', 'World', 'Sports', 'Technology', 'Health', 'Science', 'Business', 'Entertainment', 'Politics'];
+    s
+    const categories = ['Food', 'Medical', 'Technology', 'Travel', 'World', 'India', 'News'];
 
     useEffect(() => {
         if (editingStory) {
@@ -27,7 +28,7 @@ const AddStoryModal = ({ closeModal, postStory, editingStory }) => {
                 imageUrl: slide.imageUrl || '',
                 videoUrl: slide.videoUrl || ''
             }));
-            // Ensure there are at least 3 slides
+
             while (editedSlides.length < 3) {
                 editedSlides.push({
                     id: editedSlides.length + 1,
@@ -40,7 +41,7 @@ const AddStoryModal = ({ closeModal, postStory, editingStory }) => {
             setSlides(editedSlides);
             setCategory(editingStory.category);
         } else {
-            // Reset to initial state when adding a new story
+
             setSlides([
                 { id: 1, heading: '', description: '', imageUrl: '', videoUrl: '' },
                 { id: 2, heading: '', description: '', imageUrl: '', videoUrl: '' },
@@ -87,25 +88,37 @@ const AddStoryModal = ({ closeModal, postStory, editingStory }) => {
     };
 
     const handlePostStory = async () => {
+        if (!category) {
+            setError("Please select a category");
+            return;
+        }
         const isValid = slides.every(slide => slide.imageUrl || slide.videoUrl);
         if (!isValid) {
-            setError("Each slide must have either an image or video URL.");
+            setError("Please fill all fields.");
             return;
         }
 
-        const storyData = slides.map(slide => ({
-            heading: slide.heading,
-            description: slide.description,
-            imageUrl: slide.imageUrl,
-            videoUrl: slide.videoUrl,
-        }));
-
-        postStory({
+        const storyData = {
             category,
-            slides: storyData,
-        });
+            slides: slides.map(slide => ({
+                heading: slide.heading,
+                description: slide.description,
+                imageUrl: slide.imageUrl,
+                videoUrl: slide.videoUrl,
+            }))
+        };
 
-        closeModal();
+        try {
+            if (editingStory) {
+                await postStory(storyData);
+            } else {
+                await postStory(storyData);
+            }
+            closeModal();
+        } catch (error) {
+            console.error('Error posting/updating story:', error);
+            setError('Failed to save the story. Please try again.');
+        }
     };
 
     const checkVideoDuration = (url) => {
@@ -149,79 +162,86 @@ const AddStoryModal = ({ closeModal, postStory, editingStory }) => {
         }
     };
 
+
+
     return (
         <div className="addstory">
             <div className="add-story-modal">
+                {isMobile && (
+                    <div className="modalheader"><h2>Add Story To Feed</h2></div>
+                )}
                 <button className="close-modal-button" onClick={closeModal}>×</button>
-                <div className="slide-tabs">
-                    {slides.map((slide) => (
-                        <div key={slide.id} className="slide-tab-container">
-                            <button
-                                className={`slide-tab ${currentSlide === slide.id ? 'active' : ''}`}
-                                onClick={() => setCurrentSlide(slide.id)}
-                            >
-                                Slide {slide.id}
-                                {currentSlide === slide.id && slides.length > 3 && slide.id !== 1 && (
-                                    <button className="delete-slide" onClick={() => deleteSlide(slide.id)}>×</button>
-                                )}
-                            </button>
-                        </div>
-                    ))}
-                    {slides.length < 6 && (
-                        <button className="slide-tab add-slide" onClick={addSlide}>Add +</button>
-                    )}
-                </div>
-                {slides.map((slide) => (
-                    <div key={slide.id} className={`form-container ${currentSlide === slide.id ? '' : 'hidden'}`}>
-                        <div className="form-group">
-                            <label htmlFor={`heading-${slide.id}`}>Heading :</label>
-                            <input
-                                type="text"
-                                id={`heading-${slide.id}`}
-                                name="heading"
-                                placeholder="Your heading"
-                                value={slide.heading}
-                                onChange={(e) => handleInputChange(e, slide.id)}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor={`description-${slide.id}`}>Description :</label>
-                            <textarea
-                                id={`description-${slide.id}`}
-                                name="description"
-                                placeholder="Story Description"
-                                value={slide.description}
-                                onChange={(e) => handleInputChange(e, slide.id)}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor={`mediaUrl-${slide.id}`}>Image/Video URL :</label>
-                            <input
-                                type="text"
-                                id={`mediaUrl-${slide.id}`}
-                                name="mediaUrl"
-                                placeholder="Enter image or video URL"
-                                value={slide.imageUrl || slide.videoUrl}
-                                onChange={(e) => handleMediaUrlChange(e, slide.id)}
-                            />
-                            <div className="form-group category-group">
-                                <label htmlFor="category">Category :</label>
-                                <select
-                                    id="category"
-                                    name="category"
-                                    value={category}
-                                    onChange={(e) => setCategory(e.target.value)}
-                                    className="scrollable-dropdown"
+                <div className="slideandinput">
+                    <div className="slide-tabs">
+                        {slides.map((slide) => (
+                            <div key={slide.id} className="slide-tab-container">
+                                <button
+                                    className={`slide-tab ${currentSlide === slide.id ? 'active' : ''}`}
+                                    onClick={() => setCurrentSlide(slide.id)}
                                 >
-                                    <option value="">Select category</option>
-                                    {categories.map((cat, index) => (
-                                        <option key={index} value={cat.toLowerCase()}>{cat}</option>
-                                    ))}
-                                </select>
+                                    Slide {slide.id}
+                                    {slides.length > 3 && slide.id !== 1 && slide.id !== 2 && slide.id !== 3 && (
+                                        <button className="delete-slide" onClick={() => deleteSlide(slide.id)}>×</button>
+                                    )}
+                                </button>
+                            </div>
+                        ))}
+                        {slides.length < 6 && (
+                            <button className="slide-tab add-slide" onClick={addSlide}>Add +</button>
+                        )}
+                    </div>
+                    {slides.map((slide) => (
+                        <div key={slide.id} className={`form-container ${currentSlide === slide.id ? '' : 'hidden'}`}>
+                            <div className="form-group">
+                                <label htmlFor={`heading-${slide.id}`}>Heading :</label>
+                                <input
+                                    type="text"
+                                    id={`heading-${slide.id}`}
+                                    name="heading"
+                                    placeholder="Your heading"
+                                    value={slide.heading}
+                                    onChange={(e) => handleInputChange(e, slide.id)}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor={`description-${slide.id}`}>Description :</label>
+                                <textarea
+                                    id={`description-${slide.id}`}
+                                    name="description"
+                                    placeholder="Story Description"
+                                    value={slide.description}
+                                    onChange={(e) => handleInputChange(e, slide.id)}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor={`mediaUrl-${slide.id}`}>Image/Video URL :</label>
+                                <input
+                                    type="text"
+                                    id={`mediaUrl-${slide.id}`}
+                                    name="mediaUrl"
+                                    placeholder="Enter image or video URL"
+                                    value={slide.imageUrl || slide.videoUrl}
+                                    onChange={(e) => handleMediaUrlChange(e, slide.id)}
+                                />
+                                <div className="form-group category-group">
+                                    <label htmlFor="category">Category :</label>
+                                    <select
+                                        id="category"
+                                        name="category"
+                                        value={category}
+                                        onChange={(e) => setCategory(e.target.value)}
+                                        className="scrollable-dropdown"
+                                    >
+                                        <option value="">Select category</option>
+                                        {categories.map((cat, index) => (
+                                            <option key={index} value={cat.toLowerCase()}>{cat}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
 
                 {error && <div className="error-message">{error}</div>}
                 <div className="button-group">

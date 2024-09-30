@@ -1,4 +1,4 @@
-// routes/storyRoutes.js
+
 const express = require('express');
 const multer = require('multer');
 const Story = require('../model/story');
@@ -8,7 +8,6 @@ const User = require('../model/user');
 const mongoose = require('mongoose');
 
 
-// Add a story (protected route)
 
 router.post('/add', middleware, async (req, res) => {
 
@@ -19,7 +18,7 @@ router.post('/add', middleware, async (req, res) => {
         return res.status(400).json({ message: "No slides provided." });
     }
 
-    // Validate the slides
+
     const validSlides = slides.filter(slide =>
         slide.heading && slide.description && (slide.imageUrl || slide.videoUrl)
     );
@@ -43,9 +42,9 @@ router.post('/add', middleware, async (req, res) => {
     }
 });
 
-// Fetch stories (for all users)
+
 router.get('/fetchstories', async (req, res) => {
-    console.log('fetching stories')
+
 
     try {
 
@@ -59,9 +58,9 @@ router.get('/fetchstories', async (req, res) => {
 
 router.get('/userstories', middleware, async (req, res) => {
     try {
-        console.log('stories')
+
         const userStories = await Story.find({ userId: req.user._id });
-        console.log('userStories', userStories)
+
         res.json(userStories);
     } catch (error) {
         console.error('Error fetching user stories:', error);
@@ -73,15 +72,14 @@ router.get('/getUser', middleware, async (req, res) => {
 
     {
         try {
-            // Assuming `req.user` is populated by the auth middleware with the user's ID
-            const user = await User.findById(req.user._id).select('username'); // Exclude sensitive data like password
-            console.log('user', user)
+
+            const user = await User.findById(req.user._id).select('username');
 
             if (!user) {
                 return res.status(404).json({ message: 'User not found' });
             }
 
-            res.json(user); // Return the user data (e.g., username)
+            res.json(user);
         } catch (error) {
             console.error(error.message);
             res.status(500).json({ message: 'Server error' });
@@ -144,22 +142,33 @@ router.get('/:storyId', async (req, res) => {
 
 
 router.put('/:id', middleware, async (req, res) => {
+
     try {
         const { id } = req.params;
-        const { heading, description, imageUrl, category } = req.body;
+        const { category, slides } = req.body;
 
-        const story = await Story.findOneAndUpdate(
+        const updatedStory = await Story.findOneAndUpdate(
             { _id: id, userId: req.user._id },
-            { heading, description, imageUrl, category },
-            { new: true }
+            {
+                category,
+                slides: slides.map(slide => ({
+                    heading: slide.heading,
+                    description: slide.description,
+                    imageUrl: slide.imageUrl,
+                    videoUrl: slide.videoUrl
+                }))
+            },
+            { new: true, runValidators: true }
         );
 
-        if (!story) {
+        if (!updatedStory) {
             return res.status(404).json({ message: 'Story not found or you do not have permission to edit it' });
         }
 
-        res.json(story);
+
+        res.json(updatedStory);
     } catch (error) {
+        console.error('Error updating story:', error);
         res.status(500).json({ message: error.message });
     }
 });
@@ -167,7 +176,7 @@ router.put('/:id', middleware, async (req, res) => {
 
 
 router.get('/checkLikeBookmark/:storyId', middleware, async (req, res) => {
-    const userId = req.user ? req.user._id : null; // Get user ID from request
+    const userId = req.user ? req.user._id : null;
     const { storyId } = req.params;
 
     try {
@@ -180,7 +189,7 @@ router.get('/checkLikeBookmark/:storyId', middleware, async (req, res) => {
             return res.status(404).json({ message: 'Story not found' });
         }
 
-        // Check if the logged-in user has liked or bookmarked the story
+
         const isLiked = userId ? story.likes.some(likeUser => likeUser._id.equals(userId)) : false;
         const isBookmarked = userId ? story.bookmarks.some(bookmarkUser => bookmarkUser._id.equals(userId)) : false;
 
@@ -196,8 +205,7 @@ router.get('/checkLikeBookmark/:storyId', middleware, async (req, res) => {
 router.post('/like/:storyId/:slideIndex', middleware, async (req, res) => {
     try {
         const { storyId, slideIndex } = req.params;
-        console.log('Incoming storyId:', storyId); // Debug log
-        console.log('Incoming slideIndex:', slideIndex); // Debug log
+
 
         const story = await Story.findById(storyId);
 
@@ -209,15 +217,15 @@ router.post('/like/:storyId/:slideIndex', middleware, async (req, res) => {
         const userIndex = slide.likes.indexOf(req.user._id);
 
         if (userIndex === -1) {
-            slide.likes.push(req.user._id);  // Like the slide
+            slide.likes.push(req.user._id);
         } else {
-            slide.likes.splice(userIndex, 1);  // Unlike the slide
+            slide.likes.splice(userIndex, 1);
         }
 
         await story.save();
         res.json({ likes: slide.likes.length });
     } catch (error) {
-        console.error('Error:', error); // Log the error for better debugging
+        console.error('Error:', error);
         res.status(500).json({ message: error.message });
     }
 });
@@ -229,18 +237,44 @@ router.post('/like/:storyId/:slideIndex', middleware, async (req, res) => {
 router.post('/bookmark/:storyId/:slideIndex', middleware, async (req, res) => {
     try {
         const { storyId, slideIndex } = req.params;
-        const user = await User.findById(req.user._id);
 
+
+        if (!mongoose.Types.ObjectId.isValid(storyId)) {
+            return res.status(400).json({ message: 'Invalid story ID' });
+        }
+
+
+        const slideIndexNum = parseInt(slideIndex, 10);
+        if (isNaN(slideIndexNum) || slideIndexNum < 0) {
+            return res.status(400).json({ message: 'Invalid slide index' });
+        }
+
+        const user = await User.findById(req.user._id);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
+
+        if (!Array.isArray(user.bookmarks)) {
+            user.bookmarks = [];
+        }
+
+        const story = await Story.findById(storyId);
+        if (!story) {
+            return res.status(404).json({ message: 'Story not found' });
+        }
+
+
+        if (slideIndexNum >= story.slides.length) {
+            return res.status(400).json({ message: 'Invalid slide index for this story' });
+        }
+
         const bookmarkIndex = user.bookmarks.findIndex(
-            b => b.story.toString() === storyId && b.slide === parseInt(slideIndex)
+            b => b.story && b.story.equals(storyId) && b.slide === slideIndexNum
         );
 
         if (bookmarkIndex === -1) {
-            user.bookmarks.push({ story: storyId, slide: parseInt(slideIndex) });
+            user.bookmarks.push({ story: storyId, slide: slideIndexNum });
         } else {
             user.bookmarks.splice(bookmarkIndex, 1);
         }
@@ -249,10 +283,9 @@ router.post('/bookmark/:storyId/:slideIndex', middleware, async (req, res) => {
         res.json({ bookmarked: bookmarkIndex === -1 });
     } catch (error) {
         console.error('Error bookmarking story:', error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'An error occurred while bookmarking the story' });
     }
 });
-
 router.get('/userbookmarks', middleware, async (req, res) => {
     try {
         const user = await User.findById(req.user._id);

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { X, Eye, EyeOff } from 'lucide-react';
 import '../styles/login.css';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const Login = ({ closeModal, onLogin }) => {
     const [passwordVisible, setPasswordVisible] = useState(false);
@@ -30,8 +30,7 @@ const Login = ({ closeModal, onLogin }) => {
             const { token } = response.data;
             localStorage.setItem('token', token);
             setErrors('');
-            console.log('Login successful! Token saved:', token);
-            console.log('username', username);
+
             onLogin(username, token);
 
             closeModal();

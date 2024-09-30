@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaBookmark, FaPlus, FaCheck, FaUserCircle, FaEdit, FaHeart, FaRegHeart, FaDownload, FaShareAlt, FaRegBookmark } from 'react-icons/fa';
+import { FaEdit } from 'react-icons/fa';
 
 const StoryBox = ({ story, onClick, onEdit }) => {
     const isVideo = story.slides[0].videoUrl && story.slides[0].videoUrl.trim() !== '';

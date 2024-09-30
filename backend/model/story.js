@@ -5,8 +5,8 @@ const slideSchema = new mongoose.Schema({
     description: { type: String, required: true },
     imageUrl: { type: String },
     videoUrl: { type: String },
-    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],  // Likes specific to each slide
-    bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]  // Bookmarks specific to each slide
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 });
 
 slideSchema.pre('validate', function (next) {

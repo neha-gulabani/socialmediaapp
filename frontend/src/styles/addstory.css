@@ -57,14 +57,18 @@
     position: relative;
 }
 
+.slide-tab.active {
+    border: 1pt solid #73ABFF;
+}
+
 
 .delete-slide {
     position: absolute;
     top: -8px;
     right: -8px;
-    background-color: #dc3545;
-    color: white;
-    border: none;
+    background-color: white;
+    color: #dc3545;
+    border: 1pt solid #dc3545;
     border-radius: 50%;
     width: 20px;
     height: 20px;
@@ -75,10 +79,6 @@
     cursor: pointer;
 }
 
-/* .slide-tab.add-slide {
-    background-color: #28a745;
-    color: white;
-} */
 
 .form-container {
     display: grid;
@@ -95,9 +95,7 @@
     display: contents;
 }
 
-/* .category-group {
-    margin-top: 20px;
-} */
+
 
 label {
     font-weight: bold;
@@ -158,7 +156,7 @@ textarea {
     color: white;
 }
 
-/* Scrollable dropdown for category selection */
+
 .scrollable-dropdown {
     max-height: 150px;
     overflow-y: auto;
@@ -183,5 +181,71 @@ textarea {
 
 .btn.disabled:hover {
     background-color: #007bff;
-    /* or whatever your default button color is */
+
+}
+
+@media (max-width: 768px) {
+    .slideandinput {
+
+        display: flex;
+        padding: 5px;
+    }
+
+
+    .add-story-modal {
+        padding: 0px;
+        width: 80%;
+        max-width: none;
+        height: auto;
+        max-height: 80vh;
+        overflow-y: auto;
+
+
+    }
+
+    .form-container {
+
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+
+    }
+
+    .modal-header h2 {
+        font-size: 16px;
+    }
+
+    .slide-tabs {
+        margin-bottom: 15px;
+        margin-right: 15px;
+
+        flex-direction: column;
+
+    }
+
+    .slide-tab {
+        font-size: 11px;
+        padding: 12px 17px;
+
+    }
+
+    label {
+        font-size: 13px;
+    }
+
+    input,
+    textarea,
+    select,
+    #category {
+        font-size: 13px;
+        margin: 0;
+        padding: 5px 5px;
+    }
+
+
+
+    .btn.post {
+        font-size: 14px;
+
+    }
 }

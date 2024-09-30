@@ -14,6 +14,11 @@ const Register = ({ closeModal }) => {
     const handleRegister = async () => {
         if (isRegistering) return;
 
+        if (!username || !password) {
+            setErrorMessage('Username and password are required.');
+            return;
+        }
+
         setIsRegistering(true);
         try {
             const response = await axios.post('http://localhost:5000/auth/signup', {
@@ -21,6 +26,7 @@ const Register = ({ closeModal }) => {
                 password,
             });
             setSuccessMessage(`User ${response.data.username} registered successfully!`);
+            closeModal();
             setErrorMessage('');
         } catch (error) {
             if (error.response && error.response.data.message) {
@@ -42,10 +48,9 @@ const Register = ({ closeModal }) => {
                 </button>
                 <h2 className="modal-title">Register</h2>
 
-                {errorMessage && <div className="error-message">{errorMessage}</div>}
-                {successMessage && <div className="success-message">{successMessage}</div>}
 
-                <div className="input-group">
+
+                <div className="input-groupsignup">
                     <label htmlFor="username">Username</label>
                     <input
                         type="text"
@@ -56,7 +61,7 @@ const Register = ({ closeModal }) => {
                     />
                 </div>
 
-                <div className="input-group">
+                <div className="input-groupsignup">
                     <label htmlFor="password">Password</label>
                     <div className="password-input">
                         <input
@@ -75,6 +80,8 @@ const Register = ({ closeModal }) => {
                         </button>
                     </div>
                 </div>
+                {errorMessage && <div className="error-message">{errorMessage}</div>}
+                {successMessage && <div className="success-message">{successMessage}</div>}
 
                 <button
                     className="register-button"

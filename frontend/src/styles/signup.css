@@ -9,7 +9,6 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    /* Ensure it's on top of other content */
 }
 
 
@@ -20,41 +19,30 @@
     padding: 20px;
     width: 500px;
     height: 400px;
-
     position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    /* Vertically center elements */
 }
 
-.input-group {
+.input-groupsignup {
     display: flex;
     align-items: center;
-    /* Vertically aligns label and input */
     margin-bottom: 15px;
-
-    /* Makes input and label take full width */
 }
 
-.input-group label {
+.input-groupsignup label {
     font-weight: bold;
     margin-right: 5px;
     flex: 1;
-    /* Make the label take one part of the space */
     margin-top: 20px;
 }
 
-.input-group input {
-    flex: 2;
-    /* Make the input take two parts of the space */
+.input-groupsignup input {
     border-radius: 0;
-
-
     padding: 8px;
     border: 1pt solid black;
     width: 200px;
-
     border-radius: 4px;
     font-size: 14px;
     margin-left: 60px;
@@ -70,11 +58,6 @@
 .password-input {
     position: relative;
     margin-top: 20px;
-
-
-
-
-    /* Ensure full width */
 }
 
 .toggle-password {
@@ -91,7 +74,7 @@
     width: 25%;
     padding: 10px;
     background-color: #73ABFF;
-    color: black;
+    color: white;
     font-weight: bold;
     border: none;
     border-radius: 20px;
@@ -134,4 +117,48 @@
 .success-message {
     color: green;
     margin-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+    .modal-contentsignup {
+        width: 55%;
+        height: auto;
+        padding: 30px 40px;
+
+    }
+
+    .input-group input {
+
+        margin-left: 20px;
+        align-items: flex-start;
+
+
+    }
+
+    .input-group {
+
+        flex-direction: column;
+        margin: 0;
+        align-items: flex-start;
+
+    }
+
+    .input-group label {
+        margin-left: 20px;
+
+    }
+
+    .register-button {
+        width: 50%;
+    }
+
+    .close-button {
+        width: 12%;
+        top: 20px;
+        right: 20px;
+
+    }
+
+
+
 }

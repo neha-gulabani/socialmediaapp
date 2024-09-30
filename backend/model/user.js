@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
 userSchema.pre('init', function () {
     this.bookmarks = this.bookmarks || [];
 });
-// Password hashing middleware
+
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) {
         return next();
